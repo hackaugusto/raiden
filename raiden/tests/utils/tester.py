@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 from binascii import hexlify, unhexlify
 
-import ethereum.config
 import rlp
+import ethereum.config
+import ethereum.messages
 from ethereum.block import Block, BlockHeader
+from ethereum.genesis_helpers import mk_basic_state
 from ethereum import utils
 from ethereum.tools import tester
-from ethereum.genesis_helpers import mk_basic_state
 from ethereum.trie import BLANK_ROOT
+from ethereum.transactions import Transaction
 
+from raiden import settings
 from raiden.utils import sha3
 from raiden.tests.utils.blockchain import DEFAULT_BALANCE
 from raiden.constants import (
@@ -61,7 +64,7 @@ def create_tester_state(deploy_key, private_keys, tester_blockgas_limit):
         }
 
     header = {
-        'number': ethereum.config.default_config['HOMESTEAD_FORK_BLKNUM'],
+        'number': ethereum.config.default_config['METROPOLIS_FORK_BLKNUM'] + 1,
         'gas_limit': tester_blockgas_limit,
         'gas_used': 0,
         'timestamp': 1467446877,
@@ -69,7 +72,42 @@ def create_tester_state(deploy_key, private_keys, tester_blockgas_limit):
         'uncles_hash': '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347',
     }
 
-    return mk_basic_state(alloc, header)
+    state = mk_basic_state(alloc, header)
+    assert state.is_METROPOLIS()
+
+    # chain = tester.Chain(alloc, genesis=header)
+    # assert chain.head_state.is_METROPOLIS()
+
+    return state
+
+
+def tester_send_transaction(
+        state,
+        sender_privatekey,
+        to,
+        data,
+        value,
+        startgas=settings.GAS_LIMIT,
+        gasprice=0):
+
+    sender_addr = privatekey_to_address(sender_privatekey)
+    sender_nonce = state.get_nonce(sender_addr)
+
+    signed_transaction = Transaction(
+        sender_nonce,
+        gasprice,
+        startgas,
+        to,
+        value,
+        data,
+    ).sign(sender_privatekey)
+
+    success, output = ethereum.messages.apply_transaction(state, signed_transaction)
+
+    if not success:
+        raise tester.TransactionFailed()
+
+    return output
 
 
 def approve_and_deposit(tester_token, nettingcontract, deposit, key):

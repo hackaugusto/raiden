@@ -29,7 +29,7 @@ def tester_blockgas_limit():
     Note:
         `GAS_LIMIT` is defined in `raiden.network.rpc.client.GAS_LIMIT`
     """
-    return 10 ** 10
+    return 10 ** 10000
 
 
 @pytest.fixture
