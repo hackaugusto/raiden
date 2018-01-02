@@ -3,8 +3,8 @@ from binascii import unhexlify
 import contextlib
 
 from coincurve import PrivateKey
-from ethereum.tester import TransactionFailed
-from ethereum.processblock import BlockGasLimitReached
+from ethereum.tools.tester import TransactionFailed
+from ethereum.exceptions import BlockGasLimitReached
 from hypothesis import assume
 from hypothesis.stateful import GenericStateMachine
 from hypothesis.strategies import (

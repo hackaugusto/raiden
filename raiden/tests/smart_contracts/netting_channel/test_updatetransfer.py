@@ -2,7 +2,7 @@
 from binascii import hexlify
 
 import pytest
-from ethereum.tester import TransactionFailed
+from ethereum.tools.tester import TransactionFailed
 from coincurve import PrivateKey
 
 from raiden.messages import (

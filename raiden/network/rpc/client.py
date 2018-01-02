@@ -8,15 +8,10 @@ import rlp
 import gevent
 from gevent.lock import Semaphore
 from ethereum import slogging
-from ethereum import _solidity
+from ethereum.tools import _solidity
 from ethereum.abi import ContractTranslator
 from ethereum.transactions import Transaction
 from ethereum.utils import normalize_address
-from ethereum._solidity import (
-    solidity_unresolved_symbols,
-    solidity_library_symbol,
-    solidity_resolve_symbols
-)
 from tinyrpc.protocols.jsonrpc import (
     JSONRPCErrorResponse,
     JSONRPCProtocol,
@@ -71,7 +66,7 @@ def deploy_dependencies_symbols(all_contract):
 
     symbols_to_contract = dict()
     for contract_name in all_contract:
-        symbol = solidity_library_symbol(contract_name)
+        symbol = _solidity.solidity_library_symbol(contract_name)
 
         if symbol in symbols_to_contract:
             raise ValueError('Conflicting library names.')
@@ -79,7 +74,7 @@ def deploy_dependencies_symbols(all_contract):
         symbols_to_contract[symbol] = contract_name
 
     for contract_name, contract in all_contract.items():
-        unresolved_symbols = solidity_unresolved_symbols(contract['bin_hex'])
+        unresolved_symbols = _solidity.solidity_unresolved_symbols(contract['bin_hex'])
         dependencies[contract_name] = [
             symbols_to_contract[unresolved]
             for unresolved in unresolved_symbols
@@ -347,10 +342,10 @@ class JSONRPCClient(object):
         libraries = dict(libraries)
         contract = all_contracts[contract_key]
         contract_interface = contract['abi']
-        symbols = solidity_unresolved_symbols(contract['bin_hex'])
+        symbols = _solidity.solidity_unresolved_symbols(contract['bin_hex'])
 
         if symbols:
-            available_symbols = map(solidity_library_symbol, all_contracts.keys())
+            available_symbols = map(_solidity.solidity_library_symbol, all_contracts.keys())
 
             unknown_symbols = set(symbols) - set(available_symbols)
             if unknown_symbols:
@@ -370,7 +365,10 @@ class JSONRPCClient(object):
             for deploy_contract in deployment_order:
                 dependency_contract = all_contracts[deploy_contract]
 
-                hex_bytecode = solidity_resolve_symbols(dependency_contract['bin_hex'], libraries)
+                hex_bytecode = _solidity.solidity_resolve_symbols(
+                    dependency_contract['bin_hex'],
+                    libraries,
+                )
                 bytecode = unhexlify(hex_bytecode)
 
                 dependency_contract['bin_hex'] = hex_bytecode
@@ -398,7 +396,7 @@ class JSONRPCClient(object):
                 if deployed_code == '0x':
                     raise RuntimeError('Contract address has no code, check gas usage.')
 
-            hex_bytecode = solidity_resolve_symbols(contract['bin_hex'], libraries)
+            hex_bytecode = _solidity.solidity_resolve_symbols(contract['bin_hex'], libraries)
             bytecode = unhexlify(hex_bytecode)
 
             contract['bin_hex'] = hex_bytecode

@@ -7,7 +7,7 @@ from collections import namedtuple
 
 import pytest
 from ethereum import slogging
-from ethereum._solidity import compile_file
+from ethereum.tools._solidity import compile_file
 
 from raiden.utils import (
     address_decoder,

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import pytest
-from ethereum import tester
-from ethereum.tester import TransactionFailed
+from ethereum.tools import tester
 from ethereum.utils import encode_hex
 from coincurve import PrivateKey
 
@@ -63,7 +62,7 @@ def test_close_only_participant_can_close(tester_nettingcontracts):
     _, _, nettingchannel = tester_nettingcontracts[0]
 
     nonparticipant_key = tester.k3
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(sender=nonparticipant_key)
 
 
@@ -81,7 +80,7 @@ def test_close_first_argument_is_for_partner_transfer(tester_state, tester_chann
     )
 
     transfer0_hash = sha3(transfer0.packed().data[:-65])
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(
             transfer0.nonce,
             transfer0.transferred_amount,
@@ -116,7 +115,7 @@ def test_close_accepts_only_transfer_from_participants(tester_channels, private_
     transfer_nonparticipant.sign(nonparticipant_sign_key, nonparticipant_address)
 
     transfer_nonparticipant_hash = sha3(transfer_nonparticipant.packed().data[:-65])
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(
             transfer_nonparticipant.nonce,
             transfer_nonparticipant.transferred_amount,
@@ -148,7 +147,7 @@ def test_close_wrong_channel(tester_channels):
     transfer_wrong_channel.sign(PrivateKey(pkey1), privatekey_to_address(pkey1))
 
     transfer_wrong_channel_hash = sha3(transfer_wrong_channel.packed().data[:-65])
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(
             transfer_wrong_channel.nonce,
             transfer_wrong_channel.transferred_amount,
@@ -167,10 +166,10 @@ def test_close_called_multiple_times(tester_state, tester_nettingcontracts):
     closed_block_number = tester_state.block.number
     nettingchannel.close(sender=pkey0)
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(sender=pkey0)
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(sender=pkey1)
 
     assert nettingchannel.closed(sender=pkey0) == closed_block_number
@@ -212,7 +211,7 @@ def test_close_valid_tranfer_different_token(
     direct_transfer_other_token.sign(sign_key, address)
 
     direct_transfer_other_token_hash = sha3(direct_transfer_other_token.encode()[:-65])
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(
             direct_transfer_other_token.nonce,
             direct_transfer_other_token.transferred_amount,
@@ -241,7 +240,7 @@ def test_close_tampered_identifier(tester_state, tester_channels):
     tampered_transfer.identifier += 1
 
     tampered_transfer_hash = sha3(tampered_transfer.encode()[:-65])
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(
             tampered_transfer.nonce,
             tampered_transfer.transferred_amount,
@@ -270,7 +269,7 @@ def test_close_tampered_nonce(tester_state, tester_channels):
     tampered_transfer.nonce += 1
 
     tampered_transfer_hash = sha3(tampered_transfer.encode()[:-65])
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         nettingchannel.close(
             tampered_transfer.nonce,
             tampered_transfer.transferred_amount,

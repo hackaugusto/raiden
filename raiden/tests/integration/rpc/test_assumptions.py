@@ -4,7 +4,7 @@ from __future__ import division
 from binascii import unhexlify
 import os
 
-from ethereum import _solidity
+from ethereum.tools import _solidity
 
 from raiden.network.rpc.filters import new_filter, get_filter_events
 from raiden.network.rpc.transactions import check_transaction_threw

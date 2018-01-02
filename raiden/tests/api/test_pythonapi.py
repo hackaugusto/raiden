@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from binascii import hexlify
-
 import pytest
 
 from raiden.api.python import RaidenAPI
@@ -15,7 +13,7 @@ from raiden.transfer.state import (
     CHANNEL_STATE_OPENED,
     CHANNEL_STATE_SETTLED,
 )
-from raiden.utils import get_contract_path
+from raiden.utils import address_decoder, get_contract_path
 
 
 @pytest.mark.parametrize('privatekey_seed', ['test_token_addresses:{}'])
@@ -115,7 +113,7 @@ def test_channel_lifecycle(raiden_network, token_addresses, deposit):
     assert any(
         (
             event['_event_type'] == 'ChannelNewBalance' and
-            event['participant'] == hexlify(api1.address)
+            address_decoder(event['participant']) == api1.address
         )
         for event in event_list2
     )
@@ -134,7 +132,7 @@ def test_channel_lifecycle(raiden_network, token_addresses, deposit):
     assert any(
         (
             event['_event_type'] == 'ChannelClosed' and
-            event['closing_address'] == hexlify(api1.address)
+            address_decoder(event['closing_address']) == api1.address
         )
         for event in event_list3
     )

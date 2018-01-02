@@ -6,8 +6,7 @@ import os
 import itertools
 
 import pytest
-from ethereum import _solidity
-from ethereum._solidity import compile_file
+from ethereum.tools import _solidity
 from ethereum.utils import denoms
 
 from raiden.blockchain.abi import CONTRACT_MANAGER, CONTRACT_CHANNEL_MANAGER
@@ -232,7 +231,7 @@ def test_blockchain(
     )
 
     humantoken_path = get_contract_path('HumanStandardToken.sol')
-    humantoken_contracts = compile_file(humantoken_path, libraries=dict())
+    humantoken_contracts = _solidity.compile_file(humantoken_path, libraries=dict())
     token_proxy = jsonrpc_client.deploy_solidity_contract(
         address,
         'HumanStandardToken',
@@ -245,7 +244,7 @@ def test_blockchain(
     )
 
     registry_path = get_contract_path('Registry.sol')
-    registry_contracts = compile_file(registry_path)
+    registry_contracts = _solidity.compile_file(registry_path)
     registry_proxy = jsonrpc_client.deploy_solidity_contract(
         address,
         'Registry',

@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
 from binascii import hexlify, unhexlify
 
-import ethereum.db
-import ethereum.blocks
 import ethereum.config
-from ethereum import tester
-from ethereum.utils import int_to_addr, zpad
+import rlp
+from ethereum.block import Block, BlockHeader
+from ethereum import utils
+from ethereum.tools import tester
+from ethereum.genesis_helpers import mk_basic_state
+from ethereum.trie import BLANK_ROOT
 
-from raiden.utils import (
-    address_decoder,
-    data_decoder,
-    quantity_decoder,
-)
+from raiden.utils import sha3
 from raiden.tests.utils.blockchain import DEFAULT_BALANCE
 from raiden.constants import (
     NETTINGCHANNEL_SETTLE_TIMEOUT_MIN,
@@ -45,11 +43,9 @@ INVALID_KEY = InvalidKey('default_key_was_not_set')
 
 
 def create_tester_state(deploy_key, private_keys, tester_blockgas_limit):
-    tester_state = tester.state()
-
     # special addresses 1 to 5
     alloc = {
-        int_to_addr(i): {'wei': 1}
+        utils.int_to_addr(i): {'wei': 1}
         for i in range(1, 5)
     }
 
@@ -64,35 +60,16 @@ def create_tester_state(deploy_key, private_keys, tester_blockgas_limit):
             'balance': DEFAULT_BALANCE,
         }
 
-    db = ethereum.db.EphemDB()
-    env = ethereum.config.Env(
-        db,
-        ethereum.config.default_config,
-    )
-    genesis_overwrite = {
-        'nonce': zpad(data_decoder('0x00006d6f7264656e'), 8),
-        'difficulty': quantity_decoder('0x20000'),
-        'mixhash': zpad(b'\x00', 32),
-        'coinbase': address_decoder('0x0000000000000000000000000000000000000000'),
-        'timestamp': 0,
-        'extra_data': b'',
+    header = {
+        'number': ethereum.config.default_config['HOMESTEAD_FORK_BLKNUM'],
         'gas_limit': tester_blockgas_limit,
-        'start_alloc': alloc,
+        'gas_used': 0,
+        'timestamp': 1467446877,
+        'difficulty': 1,
+        'uncles_hash': '0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347',
     }
-    genesis_block = ethereum.blocks.genesis(
-        env,
-        **genesis_overwrite
-    )
 
-    # enable DELEGATECALL opcode
-    genesis_block.number = genesis_block.config['HOMESTEAD_FORK_BLKNUM'] + 1
-
-    tester_state.db = db
-    tester_state.env = env
-    tester_state.block = genesis_block
-    tester_state.blocks = [genesis_block]
-
-    return tester_state
+    return mk_basic_state(alloc, header)
 
 
 def approve_and_deposit(tester_token, nettingcontract, deposit, key):
@@ -374,3 +351,68 @@ def new_nettingcontract(
     )
 
     return nettingchannel
+
+
+def genesis(env, **kwargs):
+    assert isinstance(env, ethereum.config.Env)
+    allowed_args = set([
+        'start_alloc',
+        'prevhash',
+        'coinbase',
+        'difficulty',
+        'gas_limit',
+        'timestamp',
+        'extra_data',
+        'mixhash',
+        'nonce',
+    ])
+    assert set(kwargs.keys()).issubset(allowed_args)
+    start_alloc = kwargs.get('start_alloc', env.config['GENESIS_INITIAL_ALLOC'])
+
+    header = BlockHeader(
+        prevhash=kwargs.get('prevhash', env.config['GENESIS_PREVHASH']),
+        uncles_hash=sha3(rlp.encode([])),
+        coinbase=kwargs.get('coinbase', env.config['GENESIS_COINBASE']),
+        state_root=BLANK_ROOT,
+        tx_list_root=BLANK_ROOT,
+        receipts_root=BLANK_ROOT,
+        bloom=0,
+        difficulty=kwargs.get('difficulty', env.config['GENESIS_DIFFICULTY']),
+        number=0,
+        gas_limit=kwargs.get('gas_limit', env.config['GENESIS_GAS_LIMIT']),
+        gas_used=0,
+        timestamp=kwargs.get('timestamp', 0),
+        extra_data=kwargs.get('extra_data', env.config['GENESIS_EXTRA_DATA']),
+        mixhash=kwargs.get('mixhash', env.config['GENESIS_MIXHASH']),
+        nonce=kwargs.get('nonce', env.config['GENESIS_NONCE']),
+    )
+
+    block = Block(header, [], [], env.db)
+
+    for addr, data in start_alloc.items():
+        if len(addr) == 40:
+            addr = utils.decode_hex(addr)
+
+        assert len(addr) == 20
+
+        if 'wei' in data:
+            block.set_balance(addr, utils.parse_int_or_hex(data['wei']))
+        elif 'balance' in data:
+            block.set_balance(addr, utils.parse_int_or_hex(data['balance']))
+        elif 'code' in data:
+            block.set_code(addr, utils.scanners['bin'](data['code']))
+        elif 'nonce' in data:
+            block.set_nonce(addr, utils.parse_int_or_hex(data['nonce']))
+        elif 'storage' in data:
+            for k, v in data['storage'].items():
+                block.set_storage_data(
+                    addr,
+                    utils.big_endian_to_int(utils.decode_hex(k[2:])),
+                    utils.decode_hex(v[2:]),
+                )
+    block.commit_state()
+    block.state.db.commit()
+
+    # genesis block has predefined state root (so no additional finalization
+    # necessary)
+    return block

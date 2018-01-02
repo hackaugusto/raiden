@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import pytest
-from ethereum import tester
-from ethereum.tester import TransactionFailed
+from ethereum.tools import tester
 
 from raiden.blockchain.abi import CONTRACT_MANAGER, CONTRACT_NETTING_CHANNEL
 from raiden.constants import (
@@ -27,7 +26,7 @@ def test_nettingchannel_settle_timeout_inrange(private_keys, tester_channelmanag
 
     log_listener = None
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         small_settle_timeout = NETTINGCHANNEL_SETTLE_TIMEOUT_MIN - 1
         tester_channelmanager.newChannel(
             privatekey_to_address(pkey1),
@@ -35,7 +34,7 @@ def test_nettingchannel_settle_timeout_inrange(private_keys, tester_channelmanag
             sender=pkey0,
         )
 
-    with pytest.raises(TransactionFailed):
+    with pytest.raises(tester.TransactionFailed):
         big_settle_timeout = NETTINGCHANNEL_SETTLE_TIMEOUT_MAX + 1
         tester_channelmanager.newChannel(
             privatekey_to_address(pkey1),

@@ -5,7 +5,7 @@ from __future__ import print_function
 from binascii import hexlify
 import json
 
-from ethereum import tester
+from ethereum.tools import tester
 from ethereum import slogging
 from raiden.utils import privatekey_to_address, get_contract_path
 

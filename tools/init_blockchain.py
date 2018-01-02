@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from binascii import hexlify
 
-from ethereum._solidity import compile_file
+from ethereum.tools._solidity import compile_file
 
 from raiden.network.rpc.client import JSONRPCClient
 from raiden.settings import GAS_PRICE

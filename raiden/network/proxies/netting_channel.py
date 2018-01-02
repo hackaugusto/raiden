@@ -110,7 +110,7 @@ class NettingChannel(object):
                 'our_balance': data[1],
                 'partner_address': address_decoder(data[2]),
                 'partner_balance': data[3],
-                'settle_timeout': settle_timeout,
+                'settle_timeout': int(settle_timeout),
             }
 
         if address_decoder(data[2]) == our_address:
@@ -140,7 +140,7 @@ class NettingChannel(object):
             self._check_exists()
             raise RuntimeError('settle_timeout returned empty')
 
-        return settle_timeout
+        return int(settle_timeout)  # convert from long to int
 
     def opened(self):
         """ Returns the block in which the channel was created.
@@ -154,7 +154,7 @@ class NettingChannel(object):
             self._check_exists()
             raise RuntimeError('opened returned empty')
 
-        return opened
+        return int(opened)  # convert from long to int
 
     def closed(self):
         """ Returns the block in which the channel was closed or 0.
@@ -168,7 +168,7 @@ class NettingChannel(object):
             self._check_exists()
             raise RuntimeError('closed returned empty')
 
-        return closed
+        return int(closed)  # convert from long to int
 
     def closing_address(self):
         """ Returns the address of the closer, if the channel is closed, None

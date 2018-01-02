@@ -6,7 +6,7 @@ from itertools import chain, product
 
 import pytest
 from ethereum.abi import ValueOutOfBounds
-from ethereum.tester import TransactionFailed
+from ethereum.tools.tester import TransactionFailed
 
 from raiden.constants import INT64_MIN, INT64_MAX, UINT64_MIN, UINT64_MAX
 from raiden.messages import DirectTransfer

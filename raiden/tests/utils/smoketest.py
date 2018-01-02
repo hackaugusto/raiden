@@ -15,7 +15,7 @@ import requests
 import http.client
 from string import Template
 
-from ethereum._solidity import get_solidity
+from ethereum.tools._solidity import get_solidity
 
 from raiden.tests.utils.tester_client import (
     tester_deploy_contract,

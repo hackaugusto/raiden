@@ -4,11 +4,10 @@ import os
 from collections import defaultdict
 from itertools import count
 
-from ethereum import tester, slogging, _solidity
-from ethereum.tester import TransactionFailed
+from ethereum import slogging
+from ethereum.tools import _solidity, tester
 from ethereum.abi import ContractTranslator
 from ethereum.utils import encode_hex
-from ethereum._solidity import solidity_get_contract_key
 
 from raiden import messages
 from raiden.exceptions import (
@@ -61,7 +60,7 @@ def tester_deploy_contract(
 
     all_contracts = _solidity.compile_file(contract_path, libraries=dict())
 
-    contract_key = solidity_get_contract_key(all_contracts, contract_path, contract_name)
+    contract_key = _solidity.solidity_get_contract_key(all_contracts, contract_path, contract_name)
     contract = all_contracts[contract_key]
     contract_interface = contract['abi']
 
@@ -483,8 +482,9 @@ class RegistryTesterMock(object):
         """ Find the channel manager for `token_address` and return a proxy to
         interact with it.
 
-        If the token is not already registered it raises `TransactionFailed` when
-        we do `self.registry_proxy.channelManagerByToken(token_address)`
+        If the token is not already registered it raises
+        `tester.TransactionFailed` when we do
+        `self.registry_proxy.channelManagerByToken(token_address)`
         """
         if token_address not in self.token_to_channelmanager:
             manager_address = self.manager_address_by_token(token_address)
@@ -555,7 +555,7 @@ class ChannelManagerTesterMock(object):
         try:
             netting_channel_address_hex = self.proxy.newChannel(other, settle_timeout)
 
-        except TransactionFailed:
+        except tester.TransactionFailed:
             raise DuplicatedChannelError('Duplicated channel')
 
         self.tester_state.mine(number_of_blocks=1)

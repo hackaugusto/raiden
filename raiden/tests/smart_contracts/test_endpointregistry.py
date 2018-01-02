@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from binascii import hexlify
-from ethereum import tester
+from ethereum.tools import tester
 from raiden.utils import get_contract_path
 
 

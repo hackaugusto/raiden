@@ -3,7 +3,7 @@ from binascii import hexlify
 import itertools
 
 import pytest
-from ethereum.tester import TransactionFailed
+from ethereum.tools.tester import TransactionFailed
 from ethereum.utils import encode_hex
 
 from raiden.utils import privatekey_to_address, sha3

@@ -2,7 +2,7 @@
 from binascii import hexlify
 import os
 
-from ethereum import tester
+from ethereum.tools import tester
 
 from raiden.utils import get_contract_path
 

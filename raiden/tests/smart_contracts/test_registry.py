@@ -4,7 +4,7 @@ from binascii import hexlify
 import pytest
 
 from ethereum import slogging
-from ethereum import tester
+from ethereum.tools import tester
 
 from raiden.tests.fixtures.tester import tester_token_address
 from raiden.utils import sha3

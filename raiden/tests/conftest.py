@@ -10,8 +10,8 @@ monkey.patch_all()
 
 import pytest
 from ethereum import slogging
-from ethereum.keys import PBKDF2_CONSTANTS
-from ethereum import processblock
+from ethereum.tools.keys import PBKDF2_CONSTANTS
+from ethereum import messages
 
 from raiden.settings import GAS_LIMIT
 from raiden.tests.fixtures import *  # noqa: F401,F403
@@ -113,7 +113,7 @@ def enable_greenlet_debugger(request):
 
 @pytest.fixture(scope='session', autouse=True)
 def monkey_patch_tester():
-    original_apply_transaction = processblock.apply_transaction
+    original_apply_transaction = messages.apply_transaction
 
     def apply_transaction(block, transaction):
         start_gas = block.gas_used
@@ -124,7 +124,7 @@ def monkey_patch_tester():
 
         return result
 
-    processblock.apply_transaction = apply_transaction
+    messages.apply_transaction = apply_transaction
 
 
 @pytest.fixture(scope='session', autouse=True)
