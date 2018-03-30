@@ -175,15 +175,17 @@ def handle_block2(target_state, channel_state, block_number):
 
 def state_transition2(target_state, state_change, channel_state, block_number):
     """ State machine for the target node of a mediated transfer. """
+    # pylint: disable=too-many-branches,unidiomatic-typecheck
+
     iteration = TransitionResult(target_state, list())
 
-    if isinstance(state_change, ActionInitTarget2):
+    if type(state_change) == ActionInitTarget2:
         iteration = handle_inittarget2(
             state_change,
             channel_state,
             block_number,
         )
-    elif isinstance(state_change, Block):
+    elif type(state_change) == Block:
         assert state_change.block_number == block_number
 
         iteration = handle_block2(
@@ -191,13 +193,13 @@ def state_transition2(target_state, state_change, channel_state, block_number):
             channel_state,
             state_change.block_number,
         )
-    elif isinstance(state_change, ReceiveSecretReveal):
+    elif type(state_change) == ReceiveSecretReveal:
         iteration = handle_secretreveal2(
             target_state,
             state_change,
             channel_state,
         )
-    elif isinstance(state_change, ReceiveUnlock):
+    elif type(state_change) == ReceiveUnlock:
         iteration = handle_unlock(
             target_state,
             state_change,
