@@ -130,7 +130,7 @@ def test_participant_selection(raiden_network, token_addresses):
     )
 
     # now receiver has a transfer
-    assert len(receiver_channel.received_transfers)
+    assert receiver_channel.received_transfers
 
     # test `leave()` method
     connection_manager = connection_managers[0]
