@@ -47,7 +47,7 @@ log = slogging.getLogger(__name__)  # pylint: disable=invalid-name
 # pylint: disable=redefined-outer-name,too-many-arguments,unused-argument,too-many-locals
 
 
-def _token_addresses(
+def tester_create_token_addresses(
         token_amount,
         number_of_tokens,
         deploy_service,
@@ -109,7 +109,7 @@ def cached_genesis(request):
     # this will create the tester _and_ deploy the Registry
     deploy_key = request.getfixturevalue('deploy_key')
     private_keys = request.getfixturevalue('private_keys')
-    registry, deploy_service, blockchain_services = _tester_services(
+    registry, deploy_service, blockchain_services = tester_services(
         deploy_key,
         private_keys,
         request.getfixturevalue('tester_blockgas_limit'),
@@ -121,7 +121,7 @@ def cached_genesis(request):
     # the contracts must be deployed previously
     register = True
     participants = [privatekey_to_address(privatekey) for privatekey in private_keys]
-    token_contract_addresses = _token_addresses(
+    token_contract_addresses = tester_create_token_addresses(
         request.getfixturevalue('token_amount'),
         request.getfixturevalue('number_of_tokens'),
         deploy_service,
@@ -272,7 +272,7 @@ def token_addresses(
             privatekey_to_address(blockchain_service.private_key) for
             blockchain_service in blockchain_services.blockchain_services
         ]
-        token_addresses = _token_addresses(
+        token_addresses = tester_create_token_addresses(
             token_amount,
             number_of_tokens,
             blockchain_services.deploy_service,
@@ -491,7 +491,7 @@ def _jsonrpc_services(
     )
 
 
-def _tester_services(deploy_key, private_keys, tester_blockgas_limit):
+def tester_services(deploy_key, private_keys, tester_blockgas_limit):
     # calling the fixture directly because we don't want to force all
     # blockchain_services to instantiate a state
     tester = tester_chain(
