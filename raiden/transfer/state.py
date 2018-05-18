@@ -43,18 +43,6 @@ NODE_NETWORK_UNREACHABLE = 'unreachable'
 NODE_NETWORK_REACHABLE = 'reachable'
 
 
-def balanceproof_from_envelope(envelope_message):
-    return BalanceProofSignedState(
-        envelope_message.nonce,
-        envelope_message.transferred_amount,
-        envelope_message.locksroot,
-        envelope_message.channel,
-        envelope_message.message_hash,
-        envelope_message.signature,
-        envelope_message.sender,
-    )
-
-
 def lockstate_from_lock(lock):
     return HashTimeLockState(
         lock.amount,

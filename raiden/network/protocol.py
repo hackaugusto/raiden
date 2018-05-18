@@ -16,13 +16,13 @@ from gevent.event import (
 from gevent.server import DatagramServer
 from ethereum import slogging
 
+from raiden.transfer import architecture
 from raiden.exceptions import (
     InvalidAddress,
     UnknownAddress,
     RaidenShuttingDown,
 )
 from raiden.constants import UDP_MAX_MESSAGE_SIZE
-from raiden.messages import decode, Delivered, Ping, Pong
 from raiden.settings import CACHE_TTL
 from raiden.utils import isaddress, pex, typing
 from raiden.utils.notifying_queue import NotifyingQueue
@@ -35,6 +35,7 @@ from raiden.transfer.state import (
     NODE_NETWORK_UNREACHABLE,
 )
 from raiden.transfer.state_change import ActionChangeNodeNetworkState
+from raiden.transport.encoding import binary
 
 log = slogging.get_logger(__name__)  # pylint: disable=invalid-name
 healthcheck_log = slogging.get_logger(__name__ + '.healthcheck')
@@ -631,8 +632,8 @@ class UDPTransport:
 
         return queue
 
-    def send_async(self, queue_name, recipient, message):
-        """ Send a new ordered message to recipient.
+    def send_async(self, queue_name, recipient, send_event: architecture.Event):
+        """ Send a message described by the `send_event` to recipient.
 
         Messages that use the same `queue_name` are ordered.
         """
@@ -640,25 +641,21 @@ class UDPTransport:
         if not isaddress(recipient):
             raise ValueError('Invalid address {}'.format(pex(recipient)))
 
-        # These are not protocol messages, but transport specific messages
-        if isinstance(message, (Delivered, Ping, Pong)):
-            raise ValueError('Do not use send for {} messages'.format(message.__class__.__name__))
-
-        messagedata = message.encode()
-        if len(messagedata) > UDP_MAX_MESSAGE_SIZE:
+        data = binary.encode(send_event)
+        if len(data) > UDP_MAX_MESSAGE_SIZE:
             raise ValueError(
                 'message size exceeds the maximum {}'.format(UDP_MAX_MESSAGE_SIZE)
             )
 
         # message identifiers must be unique
-        message_id = message.message_identifier
+        message_id = send_event.message_identifier
 
         # ignore duplicates
         if message_id not in self.messageids_to_asyncresults:
             self.messageids_to_asyncresults[message_id] = AsyncResult()
 
             queue = self.get_queue_for(recipient, queue_name)
-            queue.put((messagedata, message_id))
+            queue.put((data, message_id))
 
             if log.isEnabledFor(logging.DEBUG):
                 log.debug(
@@ -666,7 +663,7 @@ class UDPTransport:
                     node=pex(self.raiden.address),
                     queue_name=queue_name,
                     to=pex(recipient),
-                    message=message,
+                    send_event=send_event,
                 )
 
     def maybe_send(self, recipient, message):
@@ -734,13 +731,13 @@ class UDPTransport:
             )
             return
 
-        message = decode(messagedata)
+        message = binary.decode(messagedata)
 
-        if type(message) == Pong:
+        if message['message_type'] == binary.PONG_ID:
             self.receive_pong(message)
-        elif type(message) == Ping:
+        elif message['message_type'] == binary.PING_ID:
             self.receive_ping(message)
-        elif type(message) == Delivered:
+        elif message['message_type'] == binary.DELIVERED_ID:
             self.receive_delivered(message)
         elif message is not None:
             self.receive_message(message)
@@ -774,7 +771,10 @@ class UDPTransport:
             #   state change
             # - Decode it, save to the WAL, and process it (the current
             #   implementation)
-            delivered_message = Delivered(message.message_identifier)
+            delivered_message = binary.encode(
+                binary.DELIVERED_ID,
+                {'delivered_message_identifier': message.message_identifier},
+            )
             self.raiden.sign(delivered_message)
 
             self.maybe_send(
@@ -782,7 +782,7 @@ class UDPTransport:
                 delivered_message,
             )
 
-    def receive_delivered(self, delivered: Delivered):
+    def receive_delivered(self, delivered: dict):
         """ Handle a Delivered message.
 
         The Delivered message is how the UDP transport guarantees persistence
@@ -790,10 +790,10 @@ class UDPTransport:
         protocol, but it's required by this transport to provide the required
         properties.
         """
-        processed = ReceiveDelivered(delivered.delivered_message_identifier)
+        message_id = delivered['delivered_message_identifier']
+        processed = ReceiveDelivered(message_id)
         self.raiden.handle_state_change(processed)
 
-        message_id = delivered.delivered_message_identifier
         async_result = self.raiden.protocol.messageids_to_asyncresults.get(message_id)
 
         # clear the async result, otherwise we have a memory leak
@@ -804,19 +804,17 @@ class UDPTransport:
     # Pings and Pongs are used to check the health status of another node. They
     # are /not/ part of the raiden protocol, only part of the UDP transport,
     # therefore these messages are not forwarded to the message handler.
-    def receive_ping(self, ping):
+    def receive_ping(self, ping: dict):
         """ Handle a Ping message by answering with a Pong. """
 
         if ping_log.isEnabledFor(logging.DEBUG):
             ping_log.debug(
                 'PING RECEIVED',
                 node=pex(self.raiden.address),
-                message_id=ping.nonce,
                 message=ping,
-                sender=pex(ping.sender),
             )
 
-        pong = Pong(ping.nonce)
+        pong = Pong(ping['nonce'])
         self.raiden.sign(pong)
 
         try:

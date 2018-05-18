@@ -6,7 +6,7 @@ from ethereum import slogging
 from raiden.utils import random_secret
 from raiden.routing import get_best_routes
 from raiden.transfer import views
-from raiden.transfer.state import balanceproof_from_envelope
+from raiden.transfer.state import BalanceProofSignedState
 from raiden.transfer.state_change import (
     ReceiveProcessed,
     ReceiveTransferDirect,
@@ -33,36 +33,47 @@ from raiden.transfer.mediated_transfer.state_change import (
 log = slogging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
-def handle_message_secretrequest(raiden: 'RaidenService', message: SecretRequest):
+def signedbalanceproof_from_message(message):
+    return BalanceProofSignedState(
+        message['nonce'],
+        message['transferred_amount'],
+        message['locksroot'],
+        message['channel'],
+        message['message_hash'],
+        message['signature'],
+        message['sender'],
+    )
+
+
+def handle_message_secretrequest(raiden: 'RaidenService', message: dict):
     secret_request = ReceiveSecretRequest(
-        message.payment_identifier,
-        message.amount,
-        message.secrethash,
-        message.sender,
+        message['payment_identifier'],
+        message['amount'],
+        message['secrethash'],
+        message['sender'],
     )
     raiden.handle_state_change(secret_request)
 
 
-def handle_message_revealsecret(raiden: 'RaidenService', message: RevealSecret):
+def handle_message_revealsecret(raiden: 'RaidenService', message: dict):
     state_change = ReceiveSecretReveal(
-        message.secret,
-        message.sender,
+        message['secret'],
+        message['sender'],
     )
     raiden.handle_state_change(state_change)
 
 
-def handle_message_secret(raiden: 'RaidenService', message: Secret):
-    balance_proof = balanceproof_from_envelope(message)
+def handle_message_secret(raiden: 'RaidenService', message: dict):
     state_change = ReceiveUnlock(
-        message.message_identifier,
-        message.secret,
-        balance_proof,
+        message['message_identifier'],
+        message['secret'],
+        signedbalanceproof_from_message(message),
     )
     raiden.handle_state_change(state_change)
 
 
-def handle_message_refundtransfer(raiden: 'RaidenService', message: RefundTransfer):
-    registry_address = message.registry_address
+def handle_message_refundtransfer(raiden: 'RaidenService', message: dict):
+    registry_address = message['registry_address']
     from_transfer = lockedtransfersigned_from_message(message)
     node_state = views.state_from_raiden(raiden)
 
@@ -73,7 +84,7 @@ def handle_message_refundtransfer(raiden: 'RaidenService', message: RefundTransf
         raiden.address,
         from_transfer.target,
         from_transfer.lock.amount,
-        message.sender,
+        message['sender'],
     )
 
     role = views.get_transfer_role(
@@ -85,45 +96,41 @@ def handle_message_refundtransfer(raiden: 'RaidenService', message: RefundTransf
         secret = random_secret()
         state_change = ReceiveTransferRefundCancelRoute(
             registry_address,
-            message.sender,
+            message['sender'],
             routes,
             from_transfer,
             secret,
         )
     else:
         state_change = ReceiveTransferRefund(
-            message.message_identifier,
-            message.sender,
+            message['message_identifier'],
+            message['sender'],
             from_transfer,
         )
 
     raiden.handle_state_change(state_change)
 
 
-def handle_message_directtransfer(raiden: 'RaidenService', message: DirectTransfer):
-    registry_address = message.registry_address
-    token_address = message.token
-    balance_proof = balanceproof_from_envelope(message)
-
+def handle_message_directtransfer(raiden: 'RaidenService', message: dict):
     direct_transfer = ReceiveTransferDirect(
-        registry_address,
-        token_address,
-        message.message_identifier,
-        message.payment_identifier,
-        balance_proof,
+        message['registry_address'],
+        message['token'],
+        message['message_identifier'],
+        message['payment_identifier'],
+        signedbalanceproof_from_message(message),
     )
 
     raiden.handle_state_change(direct_transfer)
 
 
-def handle_message_lockedtransfer(raiden: 'RaidenService', message: LockedTransfer):
+def handle_message_lockedtransfer(raiden: 'RaidenService', message: dict):
     if message.target == raiden.address:
         raiden.target_mediated_transfer(message)
     else:
         raiden.mediate_mediated_transfer(message)
 
 
-def handle_message_processed(raiden: 'RaidenService', message: Processed):
+def handle_message_processed(raiden: 'RaidenService', message: dict):
     processed = ReceiveProcessed(message.message_identifier)
     raiden.handle_state_change(processed)
 
