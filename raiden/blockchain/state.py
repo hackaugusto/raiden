@@ -2,6 +2,7 @@ from raiden.transfer.state import (
     NettingChannelEndState,
     NettingChannelState,
     TransactionExecutionStatus,
+    TransactionState,
 )
 
 
@@ -36,14 +37,14 @@ def get_channel_state(
     open_transaction = TransactionExecutionStatus(
         None,
         opened_block_number,
-        TransactionExecutionStatus.SUCCESS,
+        TransactionState.SUCCESS,
     )
 
     if closed_block_number:
         close_transaction = TransactionExecutionStatus(
             None,
             closed_block_number,
-            TransactionExecutionStatus.SUCCESS,
+            TransactionState.SUCCESS,
         )
     else:
         close_transaction = None

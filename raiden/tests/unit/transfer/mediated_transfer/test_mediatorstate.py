@@ -30,6 +30,7 @@ from raiden.transfer.state import (
     CHANNEL_STATE_SETTLED,
     message_identifier_from_prng,
     TransactionExecutionStatus,
+    TransactionState,
 )
 from raiden.transfer.state_change import Block
 from raiden.transfer.events import ContractSendSecretReveal
@@ -298,7 +299,7 @@ def test_is_channel_close_needed_channel_closed():
     channel_state.close_transaction = TransactionExecutionStatus(
         None,
         5,
-        TransactionExecutionStatus.SUCCESS,
+        TransactionState.SUCCESS,
     )
 
     for state in MediationPairState.valid_payee_states:

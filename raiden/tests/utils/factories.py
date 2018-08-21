@@ -25,7 +25,11 @@ from raiden.transfer.state import (
     RouteState,
     TransactionExecutionStatus,
 )
-from raiden.transfer.state import BalanceProofUnsignedState, EMPTY_MERKLE_ROOT
+from raiden.transfer.state import (
+    EMPTY_MERKLE_ROOT,
+    BalanceProofUnsignedState,
+    TransactionState,
+)
 from raiden.transfer.mediated_transfer.state import (
     lockedtransfersigned_from_message,
     HashTimeLockState,
@@ -169,7 +173,7 @@ def make_channel(
     open_transaction = TransactionExecutionStatus(
         None,
         opened_block_number,
-        TransactionExecutionStatus.SUCCESS,
+        TransactionState.SUCCESS,
     )
     close_transaction = None
     settle_transaction = None

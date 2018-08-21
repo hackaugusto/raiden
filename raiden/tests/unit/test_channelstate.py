@@ -37,6 +37,7 @@ from raiden.transfer.state import (
     NettingChannelState,
     TransactionChannelNewBalance,
     TransactionExecutionStatus,
+    TransactionState,
     UnlockPartialProofState,
 )
 from raiden.transfer.state_change import (
@@ -134,7 +135,7 @@ def create_channel_from_models(our_model, partner_model):
     opened_transaction = TransactionExecutionStatus(
         None,
         1,
-        TransactionExecutionStatus.SUCCESS,
+        TransactionState.SUCCESS,
     )
     closed_transaction = None
     settled_transaction = None
@@ -922,7 +923,7 @@ def test_invalid_timeouts():
     opened_transaction = TransactionExecutionStatus(
         None,
         1,
-        TransactionExecutionStatus.SUCCESS,
+        TransactionState.SUCCESS,
     )
     closed_transaction = None
     settled_transaction = None

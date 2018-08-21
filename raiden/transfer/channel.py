@@ -60,6 +60,7 @@ from raiden.transfer.state import (
     NettingChannelState,
     TransactionChannelNewBalance,
     TransactionExecutionStatus,
+    TransactionState,
     UnlockPartialProofState,
     UnlockProofState,
 )
@@ -894,7 +895,7 @@ def get_number_of_pending_transfers(channel_end_state: NettingChannelEndState) -
 def get_status(channel_state):
     if channel_state.settle_transaction:
         finished_successfully = (
-            channel_state.settle_transaction.result == TransactionExecutionStatus.SUCCESS
+            channel_state.settle_transaction.result == TransactionState.SUCCESS
         )
         running = channel_state.settle_transaction.finished_block_number is None
 
@@ -907,7 +908,7 @@ def get_status(channel_state):
 
     elif channel_state.close_transaction:
         finished_successfully = (
-            channel_state.close_transaction.result == TransactionExecutionStatus.SUCCESS
+            channel_state.close_transaction.result == TransactionState.SUCCESS
         )
         running = channel_state.close_transaction.finished_block_number is None
 
@@ -950,12 +951,12 @@ def set_closed(
         channel_state.close_transaction = TransactionExecutionStatus(
             None,
             block_number,
-            TransactionExecutionStatus.SUCCESS,
+            TransactionState.SUCCESS,
         )
 
     elif not channel_state.close_transaction.finished_block_number:
         channel_state.close_transaction.finished_block_number = block_number
-        channel_state.close_transaction.result = TransactionExecutionStatus.SUCCESS
+        channel_state.close_transaction.result = TransactionState.SUCCESS
 
 
 def set_settled(
@@ -966,12 +967,12 @@ def set_settled(
         channel_state.settle_transaction = TransactionExecutionStatus(
             None,
             block_number,
-            TransactionExecutionStatus.SUCCESS,
+            TransactionState.SUCCESS,
         )
 
     elif not channel_state.settle_transaction.finished_block_number:
         channel_state.settle_transaction.finished_block_number = block_number
-        channel_state.settle_transaction.result = TransactionExecutionStatus.SUCCESS
+        channel_state.settle_transaction.result = TransactionState.SUCCESS
 
 
 def update_contract_balance(
