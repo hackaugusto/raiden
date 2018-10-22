@@ -410,7 +410,5 @@ def state_transition(
             pseudo_random_generator,
             block_number,
         )
-    else:
-        raise RuntimeError(state_change)
 
     return iteration

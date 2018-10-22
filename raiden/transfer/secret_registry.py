@@ -16,9 +16,6 @@ def events_for_onchain_secretreveal(
 ) -> typing.List[Event]:
     events = list()
 
-    if not isinstance(secret, typing.T_Secret):
-        raise ValueError('secret must be a Secret instance')
-
     if get_status(channel_state) in CHANNEL_STATES_PRIOR_TO_CLOSED + (CHANNEL_STATE_CLOSED, ):
         reveal_event = ContractSendSecretReveal(expiration, secret)
         events.append(reveal_event)
