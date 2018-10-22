@@ -180,7 +180,6 @@ def filter_used_routes(transfers_pair, routes):
 def get_payee_channel(channelidentifiers_to_channels, transfer_pair):
     """ Returns the payee channel of a given transfer pair. """
     payee_channel_identifier = transfer_pair.payee_transfer.balance_proof.channel_identifier
-    assert payee_channel_identifier in channelidentifiers_to_channels
     payee_channel = channelidentifiers_to_channels[payee_channel_identifier]
 
     return payee_channel
@@ -189,7 +188,6 @@ def get_payee_channel(channelidentifiers_to_channels, transfer_pair):
 def get_payer_channel(channelidentifiers_to_channels, transfer_pair):
     """ Returns the payer channel of a given transfer pair. """
     payer_channel_identifier = transfer_pair.payer_transfer.balance_proof.channel_identifier
-    assert payer_channel_identifier in channelidentifiers_to_channels
     payer_channel = channelidentifiers_to_channels[payer_channel_identifier]
 
     return payer_channel
