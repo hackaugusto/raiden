@@ -23,8 +23,8 @@ def test_close_regression(raiden_network, deposit, token_addresses):
     channel12 = channel_list[0]
 
     token_proxy = app0.raiden.chain.token(token_address)
-    node1_balance_before = token_proxy.balance_of(api1.address)
-    node2_balance_before = token_proxy.balance_of(api2.address)
+    node1_balance_before = token_proxy.balance_of(api1.address, block_hash)
+    node2_balance_before = token_proxy.balance_of(api2.address, block_hash)
 
     # Initialize app2 balance proof and close the channel
     amount = 10
@@ -56,5 +56,5 @@ def test_close_regression(raiden_network, deposit, token_addresses):
     )
     node1_expected_balance = node1_balance_before + deposit - amount
     node2_expected_balance = node2_balance_before + deposit + amount
-    assert token_proxy.balance_of(api1.address) == node1_expected_balance
-    assert token_proxy.balance_of(api2.address) == node2_expected_balance
+    assert token_proxy.balance_of(api1.address, block_hash) == node1_expected_balance
+    assert token_proxy.balance_of(api2.address, block_hash) == node2_expected_balance

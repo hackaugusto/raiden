@@ -6,7 +6,7 @@ from raiden.exceptions import TransactionThrew
 from raiden.network.rpc.client import check_address_has_code
 from raiden.network.rpc.smartcontract_proxy import ContractProxy
 from raiden.network.rpc.transactions import check_transaction_threw
-from raiden.utils import pex, privatekey_to_address, safe_gas_limit
+from raiden.utils import pex, privatekey_to_address, safe_gas_limit, typing
 from raiden_contracts.constants import CONTRACT_HUMAN_STANDARD_TOKEN
 from raiden_contracts.contract_manager import ContractManager
 
@@ -36,11 +36,16 @@ class Token:
         self.node_address = privatekey_to_address(jsonrpc_client.privkey)
         self.proxy = proxy
 
-    def allowance(self, owner, spender):
+    def allowance(
+            self,
+            owner: typing.Address,
+            spender: typing.Address,
+            block_hash: typing.BlockHash,
+    ) -> int:
         return self.proxy.contract.functions.allowance(
             to_checksum_address(owner),
             to_checksum_address(spender),
-        ).call()
+        ).call(block_identifier=block_hash)
 
     def approve(self, allowed_address, allowance):
         """ Aprove `allowed_address` to transfer up to `deposit` amount of token.
@@ -76,7 +81,7 @@ class Token:
         receipt_or_none = check_transaction_threw(self.client, transaction_hash)
 
         if receipt_or_none:
-            user_balance = self.balance_of(self.client.address)
+            user_balance = self.balance_of(self.client.address, block_hash)
 
             # If the balance is zero, either the smart contract doesnt have a
             # balanceOf function or the actual balance is zero
@@ -115,11 +120,15 @@ class Token:
 
         log.info('approve successful', **log_details)
 
-    def balance_of(self, address):
+    def balance_of(
+            self,
+            address: typing.Address,
+            block_hash: typing.BlockHash,
+    ) -> typing.TokenAmount:
         """ Return the balance of `address`. """
         return self.proxy.contract.functions.balanceOf(
             to_checksum_address(address),
-        ).call()
+        ).call(block_identifier=block_hash)
 
     def transfer(self, to_address, amount):
         log_details = {

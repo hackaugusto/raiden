@@ -158,11 +158,12 @@ class PaymentChannel:
             channel_identifier=self.channel_identifier,
         )
 
-    def set_total_deposit(self, total_deposit: typing.TokenAmount):
+    def set_total_deposit(self, total_deposit: typing.TokenAmount, block_hash: typing.BlockHash):
         self.token_network.set_total_deposit(
             channel_identifier=self.channel_identifier,
             total_deposit=total_deposit,
             partner=self.participant2,
+            block_hash=block_hash,
         )
 
     def close(

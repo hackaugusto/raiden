@@ -77,13 +77,13 @@ def test_payment_channel_proxy_basics(
     # test deposits
     initial_token_balance = 100
     token_proxy.transfer(c1_client.address, initial_token_balance)
-    initial_balance_c1 = token_proxy.balance_of(c1_client.address)
+    initial_balance_c1 = token_proxy.balance_of(c1_client.address, block_hash)
     assert initial_balance_c1 == initial_token_balance
-    initial_balance_c2 = token_proxy.balance_of(c2_client.address)
+    initial_balance_c2 = token_proxy.balance_of(c2_client.address, block_hash)
     assert initial_balance_c2 == 0
 
     # actual deposit
-    channel_proxy_1.set_total_deposit(10)
+    channel_proxy_1.set_total_deposit(10, block_hash)
 
     events = channel_filter.get_all_entries()
     assert len(events) == 2  # ChannelOpened, ChannelNewDeposit

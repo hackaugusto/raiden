@@ -121,7 +121,7 @@ class ConnectionManager:
             joinable_funds_target: Amount of funds not initially assigned.
         """
         token = self.raiden.chain.token(self.token_address)
-        token_balance = token.balance_of(self.raiden.address)
+        token_balance = token.balance_of(self.raiden.address, block_hash)
 
         if token_balance < funds:
             raise InvalidAmount(
@@ -462,7 +462,7 @@ class ConnectionManager:
         """
         if self.funds > 0:
             token = self.raiden.chain.token(self.token_address)
-            token_balance = token.balance_of(self.raiden.address)
+            token_balance = token.balance_of(self.raiden.address, block_hash)
             sum_deposits = views.get_our_capacity_for_token_network(
                 views.state_from_raiden(self.raiden),
                 self.registry_address,

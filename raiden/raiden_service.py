@@ -770,7 +770,12 @@ class RaidenService(Runnable):
     ):
 
         secret_hash = sha3(secret)
-        if self.default_secret_registry.check_registered(secret_hash):
+        is_secret_registered = self.default_secret_registry.check_registered(
+            secret_hash=secret_hash,
+            block_hash=block_hash,
+        )
+
+        if is_secret_registered:
             raise RaidenUnrecoverableError(
                 f'Attempted to initiate a locked transfer with secrethash {pex(secret_hash)}.'
                 f' That secret is already registered onchain.',

@@ -53,12 +53,14 @@ def test_token_network_deposit_race(
         channel_identifier,
         2,
         c2_client.address,
+        block_hash,
     )
     with pytest.raises(DepositMismatch):
         c1_token_network_proxy.set_total_deposit(
             channel_identifier,
             1,
             c2_client.address,
+            block_hash,
         )
 
 
@@ -92,9 +94,9 @@ def test_token_network_proxy_basics(
     initial_token_balance = 100
     token_proxy.transfer(c1_client.address, initial_token_balance)
     token_proxy.transfer(c2_client.address, initial_token_balance)
-    initial_balance_c1 = token_proxy.balance_of(c1_client.address)
+    initial_balance_c1 = token_proxy.balance_of(c1_client.address, block_hash)
     assert initial_balance_c1 == initial_token_balance
-    initial_balance_c2 = token_proxy.balance_of(c2_client.address)
+    initial_balance_c2 = token_proxy.balance_of(c2_client.address, block_hash)
     assert initial_balance_c2 == initial_token_balance
 
     # instantiating a new channel - test basic assumptions
@@ -128,6 +130,7 @@ def test_token_network_proxy_basics(
             1,
             1,
             c2_client.address,
+            block_hash,
         )
 
         assert 'does not exist' in str(exc)
@@ -175,6 +178,7 @@ def test_token_network_proxy_basics(
             channel_identifier,
             101,
             c2_client.address,
+            block_hash,
         )
 
     # no negative deposit
@@ -183,12 +187,14 @@ def test_token_network_proxy_basics(
             channel_identifier,
             -1,
             c2_client.address,
+            block_hash,
         )
     # actual deposit
     c1_token_network_proxy.set_total_deposit(
         channel_identifier,
         10,
         c2_client.address,
+        block_hash,
     )
 
     # balance proof by c2
@@ -251,6 +257,7 @@ def test_token_network_proxy_basics(
             channel_identifier,
             20,
             c1_client.address,
+            block_hash,
         )
 
         assert 'not in an open state' in str(exc)
@@ -298,14 +305,19 @@ def test_token_network_proxy_basics(
         participant2=c2_client.address,
         channel_identifier=channel_identifier,
     ) is False
-    assert token_proxy.balance_of(c1_client.address) == (initial_balance_c1 - transferred_amount)
-    assert token_proxy.balance_of(c2_client.address) == (initial_balance_c2 + transferred_amount)
+    assert token_proxy.balance_of(c1_client.address, block_hash) == (
+        initial_balance_c1 - transferred_amount
+    )
+    assert token_proxy.balance_of(c2_client.address, block_hash) == (
+        initial_balance_c2 + transferred_amount
+    )
 
     with pytest.raises(RaidenUnrecoverableError) as exc:
         c1_token_network_proxy.set_total_deposit(
             channel_identifier,
             10,
             c2_client.address,
+            block_hash,
         )
         # No channel exists
         assert 'getChannelIdentifier returned 0' in str(exc)
@@ -343,19 +355,21 @@ def test_token_network_proxy_update_transfer(
     initial_balance = 100
     token_proxy.transfer(c1_client.address, initial_balance)
     token_proxy.transfer(c2_client.address, initial_balance)
-    initial_balance_c1 = token_proxy.balance_of(c1_client.address)
+    initial_balance_c1 = token_proxy.balance_of(c1_client.address, block_hash)
     assert initial_balance_c1 == initial_balance
-    initial_balance_c2 = token_proxy.balance_of(c2_client.address)
+    initial_balance_c2 = token_proxy.balance_of(c2_client.address, block_hash)
     assert initial_balance_c2 == initial_balance
     c1_token_network_proxy.set_total_deposit(
         channel_identifier,
         10,
         c2_client.address,
+        block_hash,
     )
     c2_token_network_proxy.set_total_deposit(
         channel_identifier,
         10,
         c1_client.address,
+        block_hash,
     )
     # balance proof signed by c1
     transferred_amount_c1 = 1
@@ -490,9 +504,9 @@ def test_token_network_proxy_update_transfer(
         partner_locked_amount=0,
         partner_locksroot=EMPTY_HASH,
     )
-    assert (token_proxy.balance_of(c2_client.address) ==
+    assert (token_proxy.balance_of(c2_client.address, block_hash) ==
             (initial_balance_c2 + transferred_amount_c1 - transferred_amount_c2))
-    assert (token_proxy.balance_of(c1_client.address) ==
+    assert (token_proxy.balance_of(c1_client.address, block_hash) ==
             (initial_balance_c1 + transferred_amount_c2 - transferred_amount_c1))
 
     # Already settled
@@ -501,6 +515,7 @@ def test_token_network_proxy_update_transfer(
             channel_identifier,
             20,
             c1_client.address,
+            block_hash,
         )
 
         assert 'getChannelIdentifier returned 0' in str(exc)

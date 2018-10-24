@@ -12,7 +12,7 @@ def test_secret_registry(secret_registry_proxy):
     #  register secret
     secret = get_random_bytes(32)
     event_filter = secret_registry_proxy.secret_registered_filter()
-    secret_registry_proxy.register_secret(secret)
+    secret_registry_proxy.register_secret(secret, block_hash)
 
     # check if event is raised
     logs = event_filter.get_all_entries()
@@ -21,11 +21,15 @@ def test_secret_registry(secret_registry_proxy):
     data = keccak(secret)
     assert decoded_event['args']['secrethash'] == data
     # check if registration block matches
-    block = secret_registry_proxy.get_register_block_for_secrethash(data)
+    block = secret_registry_proxy.get_register_block_for_secrethash(data, block_hash)
     assert logs[0]['blockNumber'] == block
 
     #  test non-existing secret
-    assert 0 == secret_registry_proxy.get_register_block_for_secrethash(b'\x11' * 32)
+    non_existing_secret = b'\x11' * 32
+    assert 0 == secret_registry_proxy.get_register_block_for_secrethash(
+        non_existing_secret,
+        block_hash,
+    )
 
 
 def test_secret_registry_register_batch(secret_registry_proxy):
@@ -33,12 +37,15 @@ def test_secret_registry_register_batch(secret_registry_proxy):
     secrethashes = [keccak(secret) for secret in secrets]
 
     event_filter = secret_registry_proxy.secret_registered_filter()
-    secret_registry_proxy.register_secret_batch(secrets)
+    secret_registry_proxy.register_secret_batch(secrets, block_hash)
 
     logs = event_filter.get_all_entries()
     assert len(logs) == 4
 
-    block = secret_registry_proxy.get_register_block_for_secrethash(secrethashes[0])
+    block = secret_registry_proxy.get_register_block_for_secrethash(
+        secrethashes[0],
+        block_hash,
+    )
     decoded_events = [secret_registry_proxy.proxy.decode_event(log) for log in logs]
     assert all(event['blockNumber'] == block for event in decoded_events)
 
@@ -70,9 +77,7 @@ def secret_registry_proxy_patched(secret_registry_proxy, contract_manager):
     return secret_registry_patched
 
 
-def test_concurrent_access(
-    secret_registry_proxy_patched,
-):
+def test_concurrent_access(secret_registry_proxy_patched):
     """Test if multiple greenlets actually send only one transaction
     when registering a secret.
     This is done by patchin secret_registry_proxy to forbid more than

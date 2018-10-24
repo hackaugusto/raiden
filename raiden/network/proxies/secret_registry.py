@@ -47,10 +47,14 @@ class SecretRegistry:
         self.node_address = privatekey_to_address(self.client.privkey)
         self.open_secret_transactions = dict()
 
-    def register_secret(self, secret: typing.Secret):
-        self.register_secret_batch([secret])
+    def register_secret(self, secret: typing.Secret, block_hash: typing.BlockHash):
+        self.register_secret_batch(secrets=[secret], block_hash=block_hash)
 
-    def register_secret_batch(self, secrets: List[typing.Secret]):
+    def register_secret_batch(
+            self,
+            secrets: List[typing.Secret],
+    ):
+
         secrets_to_register = list()
         secrethashes_to_register = list()
         secrethashes_not_sent = list()
@@ -60,8 +64,10 @@ class SecretRegistry:
             secrethash = sha3(secret)
             secrethash_hex = encode_hex(secrethash)
 
+            # Letting the check_registered bellow race with is okay, at the
+            # worst case scenario we will have fewer secrets to register.
             is_register_needed = (
-                not self.check_registered(secrethash) and
+                not self.check_registered(secrethash=secrethash, block_hash='latest') and
                 secret not in self.open_secret_transactions
             )
             if is_register_needed:
@@ -109,11 +115,20 @@ class SecretRegistry:
 
         return transaction_hash
 
-    def get_register_block_for_secrethash(self, secrethash: typing.Keccak256) -> int:
-        return self.proxy.contract.functions.getSecretRevealBlockHeight(secrethash).call()
+    def get_register_block_for_secrethash(
+            self,
+            secrethash: typing.Keccak256,
+            block_hash: typing.BlockHash,
+    ) -> int:
+        return self.proxy.contract.functions.getSecretRevealBlockHeight(secrethash).call(
+            block_identifier=block_hash,
+        )
 
-    def check_registered(self, secrethash: typing.Keccak256) -> bool:
-        return self.get_register_block_for_secrethash(secrethash) > 0
+    def check_registered(self, secrethash: typing.Keccak256, block_hash: typing.BlockHash) -> bool:
+        return self.get_register_block_for_secrethash(
+            secrethash=secrethash,
+            block_hash=block_hash,
+        ) > 0
 
     def secret_registered_filter(
             self,

@@ -125,7 +125,7 @@ class MessageHandler:
 
     def handle_message_lockedtransfer(self, raiden: RaidenService, message: LockedTransfer):
         secret_hash = message.lock.secrethash
-        if raiden.default_secret_registry.check_registered(secret_hash):
+        if raiden.default_secret_registry.check_registered(secret_hash=secret_hash, block_hash=block_hash):
             log.warning(
                 f'Ignoring received locked transfer with secrethash {pex(secret_hash)} '
                 f'since it is already registered in the secret registry',

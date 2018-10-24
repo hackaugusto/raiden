@@ -275,8 +275,8 @@ def test_batch_unlock(raiden_network, token_addresses, secret_registry_address, 
         bob_app.raiden.address
     ]
 
-    alice_initial_balance = token_proxy.balance_of(alice_app.raiden.address)
-    bob_initial_balance = token_proxy.balance_of(bob_app.raiden.address)
+    alice_initial_balance = token_proxy.balance_of(alice_app.raiden.address, block_hash)
+    bob_initial_balance = token_proxy.balance_of(bob_app.raiden.address, block_hash)
 
     # Take snapshot before transfer
     alice_app.raiden.wal.snapshot()
@@ -341,7 +341,7 @@ def test_batch_unlock(raiden_network, token_addresses, secret_registry_address, 
     secret_registry_proxy = alice_app.raiden.chain.secret_registry(
         secret_registry_address,
     )
-    secret_registry_proxy.register_secret(secret)
+    secret_registry_proxy.register_secret(secret, block_hash)
 
     assert lock, 'the lock must still be part of the node state'
     msg = 'the secret must be registered before the lock expires'
@@ -386,8 +386,8 @@ def test_batch_unlock(raiden_network, token_addresses, secret_registry_address, 
     alice_new_balance = alice_initial_balance + deposit - alice_to_bob_amount
     bob_new_balance = bob_initial_balance + deposit + alice_to_bob_amount
 
-    assert token_proxy.balance_of(alice_app.raiden.address) == alice_new_balance
-    assert token_proxy.balance_of(bob_app.raiden.address) == bob_new_balance
+    assert token_proxy.balance_of(alice_app.raiden.address, block_hash) == alice_new_balance
+    assert token_proxy.balance_of(bob_app.raiden.address, block_hash) == bob_new_balance
 
 
 @pytest.mark.parametrize('number_of_nodes', [2])
@@ -416,8 +416,8 @@ def test_settled_lock(token_addresses, raiden_network, deposit):
     deposit1 = deposit
 
     token_proxy = app0.raiden.chain.token(token_address)
-    initial_balance0 = token_proxy.balance_of(address0)
-    initial_balance1 = token_proxy.balance_of(address1)
+    initial_balance0 = token_proxy.balance_of(address0, block_hash)
+    initial_balance1 = token_proxy.balance_of(address1, block_hash)
     identifier = 1
     target = app1.raiden.address
     secret = sha3(target)
@@ -483,8 +483,8 @@ def test_settled_lock(token_addresses, raiden_network, deposit):
     expected_balance0 = initial_balance0 + deposit0 - amount * 2
     expected_balance1 = initial_balance1 + deposit1 + amount * 2
 
-    assert token_proxy.balance_of(address0) == expected_balance0
-    assert token_proxy.balance_of(address1) == expected_balance1
+    assert token_proxy.balance_of(address0, block_hash) == expected_balance0
+    assert token_proxy.balance_of(address1, block_hash) == expected_balance1
 
 
 @pytest.mark.parametrize('number_of_nodes', [2])
@@ -537,7 +537,10 @@ def test_automatic_secret_registration(raiden_chain, token_addresses):
     lock_expiration = target_task.target_state.transfer.lock.expiration
     wait_until_block(app1.raiden.chain, lock_expiration)
 
-    assert app1.raiden.default_secret_registry.check_registered(secrethash)
+    assert app1.raiden.default_secret_registry.check_registered(
+        secrethash,
+        block_hash,
+    )
 
 
 @pytest.mark.xfail(reason='test incomplete')
@@ -657,8 +660,8 @@ def test_automatic_dispute(raiden_network, deposit, token_addresses):
 
     channel0 = get_channelstate(app0, app1, token_network_identifier)
     token_proxy = app0.raiden.chain.token(channel0.token_address)
-    initial_balance0 = token_proxy.balance_of(app0.raiden.address)
-    initial_balance1 = token_proxy.balance_of(app1.raiden.address)
+    initial_balance0 = token_proxy.balance_of(app0.raiden.address, block_hash)
+    initial_balance1 = token_proxy.balance_of(app1.raiden.address, block_hash)
 
     amount0_1 = 10
     mediated_transfer(
@@ -711,10 +714,10 @@ def test_automatic_dispute(raiden_network, deposit, token_addresses):
 
     # check that the channel is properly settled and that Bob's client
     # automatically called updateTransfer() to reflect the actual transactions
-    assert token_proxy.balance_of(token_network_identifier) == 0
+    assert token_proxy.balance_of(token_network_identifier, block_hash) == 0
     total0 = amount0_1 + amount0_2
     total1 = amount1_1
     expected_balance0 = initial_balance0 + deposit - total0 + total1
     expected_balance1 = initial_balance1 + deposit + total0 - total1
-    assert token_proxy.balance_of(app0.raiden.address) == expected_balance0
-    assert token_proxy.balance_of(app1.raiden.address) == expected_balance1
+    assert token_proxy.balance_of(app0.raiden.address, block_hash) == expected_balance0
+    assert token_proxy.balance_of(app1.raiden.address, block_hash) == expected_balance1

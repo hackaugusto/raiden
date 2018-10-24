@@ -44,7 +44,7 @@ class EchoNode:
 
         if len(open_channels) == 0:
             token = self.api.raiden.chain.token(self.token_address)
-            if not token.balance_of(self.api.raiden.address) > 0:
+            if not token.balance_of(self.api.raiden.address, block_hash) > 0:
                 raise ValueError('not enough funds for echo node %s for token %s' % (
                     pex(self.api.raiden.address),
                     pex(self.token_address),

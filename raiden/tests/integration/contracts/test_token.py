@@ -25,12 +25,13 @@ def test_token(
     # send some funds from deployer to generated address
     transfer_funds = 100
     token_proxy.transfer(address, transfer_funds)
-    assert transfer_funds == token_proxy.balance_of(address)
+    assert transfer_funds == token_proxy.balance_of(address, block_hash)
     allow_funds = 100
     token_proxy.approve(address, allow_funds)
     assert allow_funds == token_proxy.proxy.contract.functions.allowance(
         to_checksum_address(deploy_client.address),
         to_checksum_address(address),
+        block_hash,
     ).call()
     other_token_proxy.transfer(deploy_client.address, transfer_funds)
-    assert token_proxy.balance_of(address) == 0
+    assert token_proxy.balance_of(address, block_hash) == 0

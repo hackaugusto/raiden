@@ -229,7 +229,10 @@ class RaidenEventHandler:
             raiden: RaidenService,
             channel_reveal_secret_event: ContractSendSecretReveal,
     ):
-        raiden.default_secret_registry.register_secret(channel_reveal_secret_event.secret)
+        raiden.default_secret_registry.register_secret(
+            secret=channel_reveal_secret_event.secret,
+            block_hash=block_hash,
+        )
 
     def handle_contract_send_channelclose(
             self,

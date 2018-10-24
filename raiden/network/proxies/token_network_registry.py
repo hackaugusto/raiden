@@ -66,7 +66,7 @@ class TokenNetworkRegistry:
 
         address = self.proxy.contract.functions.token_to_token_networks(
             to_checksum_address(token_address),
-        ).call()
+        ).call(block_identifier='latest')
         address = to_canonical_address(address)
 
         if is_same_address(address, NULL_ADDRESS):
@@ -149,8 +149,12 @@ class TokenNetworkRegistry:
 
     def settlement_timeout_min(self) -> int:
         """ Returns the minimal settlement timeout for the token network registry. """
-        return self.proxy.contract.functions.settlement_timeout_min().call()
+        return self.proxy.contract.functions.settlement_timeout_min().call(
+            block_identifier='latest',
+        )
 
     def settlement_timeout_max(self) -> int:
         """ Returns the maximal settlement timeout for the token network registry. """
-        return self.proxy.contract.functions.settlement_timeout_max().call()
+        return self.proxy.contract.functions.settlement_timeout_max().call(
+            block_identifier='latest',
+        )

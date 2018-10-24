@@ -388,7 +388,7 @@ class RaidenAPI:
             channel_id=channel_state.identifier,
         )
 
-        balance = token.balance_of(self.raiden.address)
+        balance = token.balance_of(self.raiden.address, block_hash)
 
         if self.raiden.config['environment_type'] == Environment.PRODUCTION:
             deposit_limit = (
@@ -426,7 +426,7 @@ class RaidenAPI:
         with channel_proxy.lock_or_raise():
             # set_total_deposit calls approve
             # token.approve(netcontract_address, addendum)
-            channel_proxy.set_total_deposit(total_deposit)
+            channel_proxy.set_total_deposit(total_deposit, block_hash)
 
             target_address = self.raiden.address
             waiting.wait_for_participant_newbalance(

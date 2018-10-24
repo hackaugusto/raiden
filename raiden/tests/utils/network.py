@@ -108,16 +108,19 @@ def payment_channel_open_and_deposit(app0, app1, token_address, deposit, settle_
 
         # This check can succeed and the deposit still fail, if channels are
         # openned in parallel
-        previous_balance = token.balance_of(app.raiden.address)
+        previous_balance = token.balance_of(app.raiden.address, block_hash)
         assert previous_balance >= deposit
 
         # the payment channel proxy will call approve
         # token.approve(token_network_proxy.address, deposit)
-        payment_channel_proxy.set_total_deposit(deposit)
+        payment_channel_proxy.set_total_deposit(
+            deposit,
+            block_hash,
+        )
 
         # Balance must decrease by at least but not exactly `deposit` amount,
         # because channels can be openned in parallel
-        new_balance = token.balance_of(app.raiden.address)
+        new_balance = token.balance_of(app.raiden.address, block_hash)
         assert new_balance <= previous_balance - deposit
 
     check_channel(
