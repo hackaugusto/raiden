@@ -130,6 +130,8 @@ class TokenNetwork:
         Args:
             partner: The peer to open the channel with.
             settle_timeout: The settle timeout to use for this channel.
+            block_hash: The hash of the block at which to query the blockchain
+                        for min/max settlement timeout values
 
         Returns:
             The ChannelID of the new netting channel.
@@ -186,7 +188,7 @@ class TokenNetwork:
         channel_created = self.channel_exists_and_not_settled(
             participant1=self.node_address,
             participant2=partner,
-            channel_identifier=channel_identifier,
+            channel_identifier=None,
             block_hash=block_hash,
         )
 
@@ -197,7 +199,7 @@ class TokenNetwork:
         channel_details = self.detail_channel(
             participant1=self.node_address,
             participant2=partner,
-            channel_identifier=channel_identifier,
+            channel_identifier=None,
             block_hash=block_hash,
         )
         channel_identifier = channel_details.channel_identifier
@@ -215,7 +217,7 @@ class TokenNetwork:
         is_not_settled = self.channel_exists_and_not_settled(
             participant1=self.node_address,
             participant2=partner,
-            channel_identifier=channel_identifier,
+            channel_identifier=None,
             block_hash=block_hash,
         )
 
@@ -252,7 +254,7 @@ class TokenNetwork:
             self,
             participant1: typing.Address,
             participant2: typing.Address,
-            channel_identifier: typing.ChannelID,
+            channel_identifier: typing.Optional[typing.ChannelID],
             block_hash: typing.BlockHash,
     ) -> bool:
         """Returns if the channel exists and is in a non-settled state"""
@@ -303,7 +305,7 @@ class TokenNetwork:
             self,
             participant1: typing.Address,
             participant2: typing.Address,
-            channel_identifier: typing.ChannelID,
+            channel_identifier: typing.Optional[typing.ChannelID],
             block_hash: typing.BlockHash,
     ) -> ChannelData:
         """ Returns a ChannelData instance with the channel specific information.
@@ -349,7 +351,7 @@ class TokenNetwork:
             self,
             participant1: typing.Address,
             participant2: typing.Address,
-            channel_identifier: typing.ChannelID,
+            channel_identifier: typing.Optional[typing.ChannelID],
             block_hash: typing.BlockHash,
     ) -> ParticipantsDetails:
         """ Returns a ParticipantsDetails instance with the participants'
@@ -419,16 +421,16 @@ class TokenNetwork:
             participant1, participant2 = participant2, participant1
 
         channel_data = self.detail_channel(
-            participant1,
-            participant2,
-            channel_identifier,
-            block_hash,
+            participant1=participant1,
+            participant2=participant2,
+            channel_identifier=channel_identifier,
+            block_hash=block_hash,
         )
         participants_data = self.detail_participants(
-            participant1,
-            participant2,
-            channel_data.channel_identifier,
-            block_hash,
+            participant1=participant1,
+            participant2=participant2,
+            channel_identifier=channel_data.channel_identifier,
+            block_hash=block_hash,
         )
         chain_id = self.proxy.contract.functions.chain_id().call(block_identifier=block_hash)
 
@@ -460,7 +462,7 @@ class TokenNetwork:
             self,
             participant1: typing.Address,
             participant2: typing.Address,
-            channel_identifier: typing.ChannelID,
+            channel_identifier: typing.Optional[typing.ChannelID],
             block_hash: typing.BlockHash,
     ) -> bool:
         """ Returns true if the channel is in an open state, false otherwise. """
@@ -479,15 +481,15 @@ class TokenNetwork:
             self,
             participant1: typing.Address,
             participant2: typing.Address,
-            channel_identifier: typing.ChannelID,
+            channel_identifier: typing.Optional[typing.ChannelID],
             block_hash: typing.BlockHash,
     ) -> bool:
         """ Returns true if the channel is in a closed state, false otherwise. """
         try:
             channel_state = self._get_channel_state(
-                participant1,
-                participant2,
-                channel_identifier,
+                participant1=participant1,
+                participant2=participant2,
+                channel_identifier=channel_identifier,
                 block_hash=block_hash,
             )
         except RaidenRecoverableError:
@@ -498,15 +500,15 @@ class TokenNetwork:
             self,
             participant1: typing.Address,
             participant2: typing.Address,
-            channel_identifier: typing.ChannelID,
+            channel_identifier: typing.Optional[typing.ChannelID],
             block_hash: typing.BlockHash,
     ) -> bool:
         """ Returns true if the channel is in a settled state, false otherwise. """
         try:
             channel_state = self._get_channel_state(
-                participant1,
-                participant2,
-                channel_identifier,
+                participant1=participant1,
+                participant2=participant2,
+                channel_identifier=channel_identifier,
                 block_hash=block_hash,
             )
         except RaidenRecoverableError:
@@ -754,10 +756,10 @@ class TokenNetwork:
                 log.critical('setTotalDeposit failed', reason=log_msg, **log_details)
 
                 self._check_channel_state_for_deposit(
-                    self.node_address,
-                    partner,
-                    channel_identifier,
-                    total_deposit,
+                    participant1=self.node_address,
+                    participant2=partner,
+                    channel_identifier=channel_identifier,
+                    deposit_amount=total_deposit,
                     block_hash=block_hash,
                 )
 
@@ -1212,7 +1214,7 @@ class TokenNetwork:
             self,
             participant1: typing.Address,
             participant2: typing.Address,
-            channel_identifier: typing.ChannelID,
+            channel_identifier: typing.Optional[typing.ChannelID],
             block_hash: typing.BlockHash,
     ):
         channel_data = self.detail_channel(
@@ -1259,7 +1261,7 @@ class TokenNetwork:
             self,
             participant1: typing.Address,
             participant2: typing.Address,
-            channel_identifier: typing.ChannelID,
+            channel_identifier: typing.Optional[typing.ChannelID],
             deposit_amount: typing.TokenAmount,
             block_hash: typing.BlockHash,
     ):
