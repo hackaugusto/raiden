@@ -42,6 +42,12 @@ def block_number(chain_state: ChainState) -> int:
     return chain_state.block_number
 
 
+def latest_confirmed_block_hash(chain_state: ChainState, confirmation_blocks: int):
+    block_number = max(0, chain_state.block_number - confirmation_blocks)
+    # TODO: Do we really need the hash here? It would be an extra RPC call
+    return block_number
+
+
 def count_token_network_channels(
         chain_state: ChainState,
         payment_network_id: typing.PaymentNetworkID,
@@ -63,6 +69,11 @@ def count_token_network_channels(
 
 def state_from_raiden(raiden) -> ChainState:
     return raiden.wal.state_manager.current_state
+
+
+def latest_confirmed_block_hash_from_raiden(raiden):
+    chain = state_from_raiden(raiden)
+    return latest_confirmed_block_hash(chain, raiden.config['blockchain']['confirmation_blocks'])
 
 
 def state_from_app(app) -> ChainState:

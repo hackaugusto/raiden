@@ -76,7 +76,9 @@ def handle_channel_new(raiden, event: Event):
             token_network_identifier,
             channel_identifier,
         )
-        token_address = channel_proxy.token_address()
+        token_address = channel_proxy.token_address(
+            block_hash=views.latest_confirmed_block_hash_from_raiden(raiden),
+        )
         channel_state = get_channel_state(
             token_address,
             raiden.default_registry.address,

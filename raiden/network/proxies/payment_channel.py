@@ -61,9 +61,9 @@ class PaymentChannel:
         with self.token_network.channel_operations_lock[self.participant2]:
             yield
 
-    def token_address(self) -> typing.Address:
+    def token_address(self, block_hash: typing.BlockHash) -> typing.Address:
         """ Returns the address of the token for the channel. """
-        return self.token_network.token_address()
+        return self.token_network.token_address(block_hash)
 
     def detail(self) -> ChannelDetails:
         """ Returns the channel details. """
