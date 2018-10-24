@@ -6,7 +6,7 @@ from raiden.exceptions import ChannelOutdatedError
 from raiden.network.proxies import PaymentChannel, TokenNetwork
 from raiden.network.rpc.client import JSONRPCClient
 from raiden.tests.utils import wait_blocks
-from raiden.utils import privatekey_to_address
+from raiden.utils import get_latest_block_hash, privatekey_to_address
 from raiden.utils.signing import eth_sign
 from raiden_contracts.constants import TEST_SETTLE_TIMEOUT_MIN
 from raiden_libs.messages import BalanceProof
@@ -36,11 +36,13 @@ def test_payment_channel_proxy_basics(
     )
 
     start_block = web3.eth.blockNumber
+    start_block_hash = web3.eth.getBlock(start_block)['hash']
 
     # create a channel
     channel_identifier = c1_token_network_proxy.new_netting_channel(
-        c2_client.address,
-        TEST_SETTLE_TIMEOUT_MIN,
+        partner=c2_client.address,
+        settle_timeout=TEST_SETTLE_TIMEOUT_MIN,
+        block_hash=start_block_hash,
     )
     assert channel_identifier is not None
 
@@ -64,8 +66,9 @@ def test_payment_channel_proxy_basics(
     assert channel_proxy_1.channel_identifier == channel_identifier
     assert channel_proxy_2.channel_identifier == channel_identifier
 
-    assert channel_proxy_1.opened() is True
-    assert channel_proxy_2.opened() is True
+    block_hash = get_latest_block_hash(web3)
+    assert channel_proxy_1.opened(block_hash=block_hash) is True
+    assert channel_proxy_2.opened(block_hash=block_hash) is True
 
     # check the settlement timeouts
     assert channel_proxy_1.settle_timeout() == channel_proxy_2.settle_timeout()
@@ -77,13 +80,13 @@ def test_payment_channel_proxy_basics(
     # test deposits
     initial_token_balance = 100
     token_proxy.transfer(c1_client.address, initial_token_balance)
-    initial_balance_c1 = token_proxy.balance_of(c1_client.address, block_hash)
+    initial_balance_c1 = token_proxy.balance_of(c1_client.address, get_latest_block_hash(web3))
     assert initial_balance_c1 == initial_token_balance
-    initial_balance_c2 = token_proxy.balance_of(c2_client.address, block_hash)
+    initial_balance_c2 = token_proxy.balance_of(c2_client.address, get_latest_block_hash(web3))
     assert initial_balance_c2 == 0
 
     # actual deposit
-    channel_proxy_1.set_total_deposit(10, block_hash)
+    channel_proxy_1.set_total_deposit(10, get_latest_block_hash(web3))
 
     events = channel_filter.get_all_entries()
     assert len(events) == 2  # ChannelOpened, ChannelNewDeposit
@@ -109,9 +112,11 @@ def test_payment_channel_proxy_basics(
         nonce=balance_proof.nonce,
         additional_hash=decode_hex(balance_proof.additional_hash),
         signature=decode_hex(balance_proof.signature),
+        block_hash=get_latest_block_hash(web3),
     )
-    assert channel_proxy_1.closed() is True
-    assert channel_proxy_2.closed() is True
+    block_hash = get_latest_block_hash(web3)
+    assert channel_proxy_1.closed(block_hash=block_hash) is True
+    assert channel_proxy_2.closed(block_hash=block_hash) is True
 
     events = channel_filter.get_all_entries()
     assert len(events) == 3  # ChannelOpened, ChannelNewDeposit, ChannelClosed
@@ -132,9 +137,11 @@ def test_payment_channel_proxy_basics(
         partner_transferred_amount=transferred_amount,
         partner_locked_amount=0,
         partner_locksroot=EMPTY_HASH,
+        block_hash=get_latest_block_hash(web3),
     )
-    assert channel_proxy_1.settled() is True
-    assert channel_proxy_2.settled() is True
+    block_hash = get_latest_block_hash(web3)
+    assert channel_proxy_1.settled(block_hash=block_hash) is True
+    assert channel_proxy_2.settled(block_hash=block_hash) is True
 
     events = channel_filter.get_all_entries()
 

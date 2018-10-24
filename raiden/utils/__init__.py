@@ -288,3 +288,7 @@ def safe_gas_limit(*estimates) -> int:
     """
     calculated_limit = max(gas or 0 for gas in estimates)
     return int(calculated_limit * constants.GAS_FACTOR)
+
+
+def get_latest_block_hash(web3) -> typing.BlockHash:
+    return web3.eth.getBlock('latest')['hash']

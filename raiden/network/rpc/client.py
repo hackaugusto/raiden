@@ -334,6 +334,10 @@ class JSONRPCClient:
         """ Return the most recent block. """
         return self.web3.eth.blockNumber
 
+    def block_hash(self) -> typing.BlockHash:
+        """ Return the most recent block hash. """
+        return self.web3.eth.getBlock('latest')['hash']
+
     def balance(self, account: typing.Address):
         """ Return the balance of the account of given address. """
         return self.web3.eth.getBalance(to_checksum_address(account), 'pending')

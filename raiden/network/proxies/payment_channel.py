@@ -118,44 +118,49 @@ class PaymentChannel:
         )
         return event['blockNumber']
 
-    def opened(self) -> bool:
+    def opened(self, block_hash: typing.BlockHash) -> bool:
         """ Returns if the channel is opened. """
         return self.token_network.channel_is_opened(
             participant1=self.participant1,
             participant2=self.participant2,
             channel_identifier=self.channel_identifier,
+            block_hash=block_hash,
         )
 
-    def closed(self) -> bool:
+    def closed(self, block_hash: typing.BlockHash) -> bool:
         """ Returns if the channel is closed. """
         return self.token_network.channel_is_closed(
             participant1=self.participant1,
             participant2=self.participant2,
             channel_identifier=self.channel_identifier,
+            block_hash=block_hash,
         )
 
-    def settled(self) -> bool:
+    def settled(self, block_hash: typing.BlockHash) -> bool:
         """ Returns if the channel is settled. """
         return self.token_network.channel_is_settled(
             participant1=self.participant1,
             participant2=self.participant2,
             channel_identifier=self.channel_identifier,
+            block_hash=block_hash,
         )
 
-    def closing_address(self) -> Optional[typing.Address]:
+    def closing_address(self, block_hash: typing.BlockHash) -> Optional[typing.Address]:
         """ Returns the address of the closer of the channel. """
         return self.token_network.closing_address(
             participant1=self.participant1,
             participant2=self.participant2,
             channel_identifier=self.channel_identifier,
+            block_hash=block_hash,
         )
 
-    def can_transfer(self) -> bool:
+    def can_transfer(self, block_hash: typing.BlockHash) -> bool:
         """ Returns True if the channel is opened and the node has deposit in it. """
         return self.token_network.can_transfer(
             participant1=self.participant1,
             participant2=self.participant2,
             channel_identifier=self.channel_identifier,
+            block_hash=block_hash,
         )
 
     def set_total_deposit(self, total_deposit: typing.TokenAmount, block_hash: typing.BlockHash):

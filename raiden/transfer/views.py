@@ -1,3 +1,5 @@
+from web3 import Web3
+
 from raiden.transfer import channel
 from raiden.transfer.architecture import ContractSendEvent
 from raiden.transfer.state import (
@@ -42,10 +44,13 @@ def block_number(chain_state: ChainState) -> int:
     return chain_state.block_number
 
 
-def latest_confirmed_block_hash(chain_state: ChainState, confirmation_blocks: int):
+def latest_confirmed_block_hash(
+        chain_state: ChainState,
+        web3: Web3,
+        confirmation_blocks: int,
+) -> typing.BlockHash:
     block_number = max(0, chain_state.block_number - confirmation_blocks)
-    # TODO: Do we really need the hash here? It would be an extra RPC call
-    return block_number
+    return web3.getBlock(block_number)['hash']
 
 
 def count_token_network_channels(
@@ -73,7 +78,11 @@ def state_from_raiden(raiden) -> ChainState:
 
 def latest_confirmed_block_hash_from_raiden(raiden):
     chain = state_from_raiden(raiden)
-    return latest_confirmed_block_hash(chain, raiden.config['blockchain']['confirmation_blocks'])
+    return latest_confirmed_block_hash(
+        chain_state=chain,
+        web3=raiden.chain.client.web3,
+        confirmation_block=raiden.config['blockchain']['confirmation_blocks'],
+    )
 
 
 def state_from_app(app) -> ChainState:

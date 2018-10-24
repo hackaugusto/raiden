@@ -185,11 +185,14 @@ class TokenNetwork:
             # All other concurrent threads should block on the result of opening this channel
             self.open_channel_transactions[partner].get()
 
+        # At this point we have potentially waited for the open transaction to be confirmed
+        # and thus we need an updated block hash
+        latest_block_hash = self.client.block_hash()
         channel_created = self.channel_exists_and_not_settled(
             participant1=self.node_address,
             participant2=partner,
             channel_identifier=None,
-            block_hash=block_hash,
+            block_hash=latest_block_hash,
         )
 
         if channel_created is False:
@@ -200,7 +203,7 @@ class TokenNetwork:
             participant1=self.node_address,
             participant2=partner,
             channel_identifier=None,
-            block_hash=block_hash,
+            block_hash=latest_block_hash,
         )
         channel_identifier = channel_details.channel_identifier
         log_details['channel_identifier'] = channel_identifier
@@ -318,7 +321,6 @@ class TokenNetwork:
             channel_identifier = self.proxy.contract.functions.getChannelIdentifier(
                 to_checksum_address(participant1),
                 to_checksum_address(participant2),
-                block_identifier=block_hash,
             ).call(block_identifier=block_hash)
 
             if channel_identifier == b'':
