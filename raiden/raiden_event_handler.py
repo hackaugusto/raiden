@@ -36,7 +36,13 @@ from raiden.transfer.mediated_transfer.events import (
     SendSecretRequest,
     SendSecretReveal,
 )
-from raiden.transfer.utils import get_event_with_balance_proof, get_state_change_with_balance_proof
+from raiden.transfer.utils import (
+    get_event_with_balance_proof,
+    get_latest_known_balance_proof_from_events,
+    get_latest_known_balance_proof_from_state_changes,
+    get_state_change_with_balance_proof,
+)
+from raiden.transfer.views import latest_confirmed_block_hash_from_raiden
 from raiden.utils import pex
 from raiden.utils.signing import eth_sign
 
@@ -289,6 +295,7 @@ class RaidenEventHandler:
             )
             our_signature = eth_sign(privkey=raiden.privkey, data=non_closing_data)
 
+            block_hash = latest_confirmed_block_hash_from_raiden(raiden)
             try:
                 channel.update_transfer(
                     nonce=balance_proof.nonce,
@@ -296,6 +303,8 @@ class RaidenEventHandler:
                     additional_hash=balance_proof.message_hash,
                     partner_signature=balance_proof.signature,
                     signature=our_signature,
+                    block_hash=block_hash,
+
                 )
             except ChannelOutdatedError as e:
                 log.error(
@@ -321,8 +330,9 @@ class RaidenEventHandler:
 
         participants_details = token_network.detail_participants(
             participant1=raiden.address,
-            participant2=participant,
-            channel_identifier=channel_identifier,
+            participant2=channel_unlock_event.participant,
+            channel_identifier=channel_unlock_event.channel_identifier,
+            block_hash=latest_confirmed_block_hash_from_raiden(raiden),
         )
 
         our_details = participants_details.our_details
@@ -417,6 +427,7 @@ class RaidenEventHandler:
             participant1=payment_channel.participant1,
             participant2=payment_channel.participant2,
             channel_identifier=channel_settle_event.channel_identifier,
+            block_hash=latest_confirmed_block_hash_from_raiden(raiden),
         )
 
         our_details = participants_details.our_details
@@ -499,10 +510,11 @@ class RaidenEventHandler:
             partner_locksroot = EMPTY_HASH
 
         payment_channel.settle(
-            our_transferred_amount,
-            our_locked_amount,
-            our_locksroot,
-            partner_transferred_amount,
-            partner_locked_amount,
-            partner_locksroot,
+            transferred_amount=our_transferred_amount,
+            locked_amount=our_locked_amount,
+            locksroot=our_locksroot,
+            partner_transferred_amount=partner_transferred_amount,
+            partner_locked_amount=partner_locked_amount,
+            partner_locksroot=partner_locksroot,
+            block_hash=latest_confirmed_block_hash_from_raiden(raiden),
         )

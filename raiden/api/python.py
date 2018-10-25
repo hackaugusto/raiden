@@ -308,6 +308,7 @@ class RaidenAPI:
                 token_network.new_netting_channel(
                     partner=partner_address,
                     settle_timeout=settle_timeout,
+                    block_hash=views.latest_confirmed_block_hash_from_raiden(self.raiden),
                 )
             except DuplicatedChannelError:
                 log.info('partner opened channel first')
@@ -388,7 +389,8 @@ class RaidenAPI:
             channel_id=channel_state.identifier,
         )
 
-        balance = token.balance_of(self.raiden.address, block_hash)
+        latest_block_hash = views.latest_confirmed_block_hash_from_raiden(self.raiden),
+        balance = token.balance_of(self.raiden.address, latest_block_hash)
 
         if self.raiden.config['environment_type'] == Environment.PRODUCTION:
             deposit_limit = (
@@ -426,7 +428,10 @@ class RaidenAPI:
         with channel_proxy.lock_or_raise():
             # set_total_deposit calls approve
             # token.approve(netcontract_address, addendum)
-            channel_proxy.set_total_deposit(total_deposit, block_hash)
+            channel_proxy.set_total_deposit(
+                total_deposit=total_deposit,
+                block_hash=latest_block_hash,
+            )
 
             target_address = self.raiden.address
             waiting.wait_for_participant_newbalance(

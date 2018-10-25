@@ -49,6 +49,7 @@ def test_invalid_close(
         contract_manager=app1.raiden.contract_manager,
     )
 
+    block_hash = views.latest_confirmed_block_hash_from_raiden(app0.raiden)
     # app1 closes the channel with an empty hash instead of the expected hash
     # of the transferred amount from app0
     token_network_contract.close(
@@ -58,6 +59,7 @@ def test_invalid_close(
         nonce=0,
         additional_hash=EMPTY_HASH,
         signature=EMPTY_SIGNATURE,
+        block_hash=block_hash,
     )
     waiting.wait_for_close(
         raiden=app0.raiden,

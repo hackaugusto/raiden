@@ -65,12 +65,13 @@ class PaymentChannel:
         """ Returns the address of the token for the channel. """
         return self.token_network.token_address(block_hash)
 
-    def detail(self) -> ChannelDetails:
+    def detail(self, block_hash: typing.BlockHash) -> ChannelDetails:
         """ Returns the channel details. """
         return self.token_network.detail(
             participant1=self.participant1,
             participant2=self.participant2,
             channel_identifier=self.channel_identifier,
+            block_hash=block_hash,
         )
 
     def settle_timeout(self) -> int:
@@ -177,6 +178,7 @@ class PaymentChannel:
             balance_hash: typing.BalanceHash,
             additional_hash: typing.AdditionalHash,
             signature: typing.Signature,
+            block_hash: typing.BlockHash,
     ):
         """ Closes the channel using the provided balance proof. """
         self.token_network.close(
@@ -186,6 +188,7 @@ class PaymentChannel:
             nonce=nonce,
             additional_hash=additional_hash,
             signature=signature,
+            block_hash=block_hash,
         )
 
     def update_transfer(
@@ -195,6 +198,7 @@ class PaymentChannel:
             additional_hash: typing.AdditionalHash,
             partner_signature: typing.Signature,
             signature: typing.Signature,
+            block_hash: typing.BlockHash,
     ):
         """ Updates the channel using the provided balance proof. """
         self.token_network.update_transfer(
@@ -205,6 +209,7 @@ class PaymentChannel:
             additional_hash=additional_hash,
             closing_signature=partner_signature,
             non_closing_signature=signature,
+            block_hash=block_hash,
         )
 
     def unlock(self, merkle_tree_leaves: bytes):
@@ -222,6 +227,7 @@ class PaymentChannel:
             partner_transferred_amount: int,
             partner_locked_amount: int,
             partner_locksroot: typing.Locksroot,
+            block_hash: typing.BlockHash,
     ):
         """ Settles the channel. """
         self.token_network.settle(
@@ -233,6 +239,7 @@ class PaymentChannel:
             partner_transferred_amount=partner_transferred_amount,
             partner_locked_amount=partner_locked_amount,
             partner_locksroot=partner_locksroot,
+            block_hash=block_hash,
         )
 
     def all_events_filter(

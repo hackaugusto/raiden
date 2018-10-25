@@ -69,7 +69,7 @@ def handle_channel_new(raiden, event: Event):
     participant1 = data['participant1']
     participant2 = data['participant2']
     is_participant = raiden.address in (participant1, participant2)
-
+    latest_block_hash = views.latest_confirmed_block_hash_from_raiden(raiden)
     # Raiden node is participant
     if is_participant:
         channel_proxy = raiden.chain.payment_channel(
@@ -77,15 +77,16 @@ def handle_channel_new(raiden, event: Event):
             channel_identifier,
         )
         token_address = channel_proxy.token_address(
-            block_hash=views.latest_confirmed_block_hash_from_raiden(raiden),
+            block_hash=latest_block_hash,
         )
         channel_state = get_channel_state(
-            token_address,
-            raiden.default_registry.address,
-            token_network_identifier,
-            raiden.config['reveal_timeout'],
-            channel_proxy,
-            event.event_data['block_number'],
+            token_address=token_address,
+            payment_network_identifier=raiden.default_registry.address,
+            token_network_address=token_network_identifier,
+            reveal_timeout=raiden.config['reveal_timeout'],
+            payment_channel_proxy=channel_proxy,
+            opened_block_numer=event.event_data['block_number'],
+            block_hash=latest_block_hash,
         )
 
         new_channel = ContractReceiveChannelNew(

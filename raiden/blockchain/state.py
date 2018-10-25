@@ -1,19 +1,22 @@
+from raiden.network.proxies.payment_channel import PaymentChannel
 from raiden.transfer.state import (
     NettingChannelEndState,
     NettingChannelState,
     TransactionExecutionStatus,
 )
+from raiden.utils import typing
 
 
 def get_channel_state(
-        token_address,
-        payment_network_identifier,
-        token_network_address,
-        reveal_timeout,
-        payment_channel_proxy,
-        opened_block_number,
-):
-    channel_details = payment_channel_proxy.detail()
+        token_address: typing.TokenAddress,
+        payment_network_identifier: typing.PaymentNetworkID,
+        token_network_address: typing.TokenNetworkAddress,
+        reveal_timeout: int,
+        payment_channel_proxy: PaymentChannel,
+        opened_block_number: typing.BlockNumber,
+        block_hash: typing.BlockHash,
+) -> NettingChannelState:
+    channel_details = payment_channel_proxy.detail(block_hash=block_hash)
 
     our_state = NettingChannelEndState(
         channel_details.participants_data.our_details.address,

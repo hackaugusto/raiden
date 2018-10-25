@@ -658,6 +658,7 @@ def test_automatic_dispute(raiden_network, deposit, token_addresses):
         token_address,
     )
 
+    block_hash = views.latest_confirmed_block_hash_from_raiden(app0.raiden)
     channel0 = get_channelstate(app0, app1, token_network_identifier)
     token_proxy = app0.raiden.chain.token(channel0.token_address)
     initial_balance0 = token_proxy.balance_of(app0.raiden.address, block_hash)
@@ -712,6 +713,7 @@ def test_automatic_dispute(raiden_network, deposit, token_addresses):
         app0.raiden.alarm.sleep_time,
     )
 
+    block_hash = views.latest_confirmed_block_hash_from_raiden(app0.raiden)
     # check that the channel is properly settled and that Bob's client
     # automatically called updateTransfer() to reflect the actual transactions
     assert token_proxy.balance_of(token_network_identifier, block_hash) == 0

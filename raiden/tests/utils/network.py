@@ -15,6 +15,7 @@ from raiden.network.transport import MatrixTransport, UDPTransport
 from raiden.raiden_event_handler import RaidenEventHandler
 from raiden.settings import DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS, DEFAULT_RETRY_TIMEOUT
 from raiden.tests.utils.factories import UNIT_CHAIN_ID
+from raiden.transfer.views import latest_confirmed_block_hash_from_raiden
 from raiden.utils import merge_dict, privatekey_to_address
 from raiden.waiting import wait_for_payment_network
 
@@ -52,12 +53,14 @@ def check_channel(
     assert settle_timeout == netcontract1.settle_timeout()
     assert settle_timeout == netcontract2.settle_timeout()
 
-    if deposit_amount > 0:
-        assert netcontract1.can_transfer()
-        assert netcontract2.can_transfer()
+    latest_block_hash = latest_confirmed_block_hash_from_raiden(app1.raiden)
 
-    app1_details = netcontract1.detail()
-    app2_details = netcontract2.detail()
+    if deposit_amount > 0:
+        assert netcontract1.can_transfer(block_hash=latest_block_hash)
+        assert netcontract2.can_transfer(block_hash=latest_block_hash)
+
+    app1_details = netcontract1.detail(block_hash=latest_block_hash)
+    app2_details = netcontract2.detail(block_hash=latest_block_hash)
 
     assert (
         app1_details.participants_data.our_details.address ==
@@ -93,8 +96,9 @@ def payment_channel_open_and_deposit(app0, app1, token_address, deposit, settle_
     token_network_proxy = app0.raiden.chain.token_network(token_network_address)
 
     channel_identifier = token_network_proxy.new_netting_channel(
-        app1.raiden.address,
-        settle_timeout,
+        partner=app1.raiden.address,
+        settle_timeout=settle_timeout,
+        block_hash=latest_confirmed_block_hash_from_raiden(app0.raiden),
     )
     assert channel_identifier
 
@@ -108,14 +112,15 @@ def payment_channel_open_and_deposit(app0, app1, token_address, deposit, settle_
 
         # This check can succeed and the deposit still fail, if channels are
         # openned in parallel
+        block_hash = latest_confirmed_block_hash_from_raiden(app.raiden)
         previous_balance = token.balance_of(app.raiden.address, block_hash)
         assert previous_balance >= deposit
 
         # the payment channel proxy will call approve
         # token.approve(token_network_proxy.address, deposit)
         payment_channel_proxy.set_total_deposit(
-            deposit,
-            block_hash,
+            total_deposit=deposit,
+            block_hash=block_hash,
         )
 
         # Balance must decrease by at least but not exactly `deposit` amount,

@@ -69,7 +69,7 @@ class ParticipantsDetails(NamedTuple):
     partner_details: ParticipantDetails
 
 
-vclass ChannelDetails(NamedTuple):
+class ChannelDetails(NamedTuple):
     chain_id: typing.ChainID
     channel_data: int
     participants_data: ParticipantsDetails
@@ -139,8 +139,8 @@ class TokenNetwork:
         if not is_binary_address(partner):
             raise InvalidAddress('Expected binary address format for channel partner')
 
-        required_min_settle_timeout = self.settlement_timeout_min(block_hash=block_hash)
-        required_max_settle_timeout = self.settlement_timeout_max(block_hash=block_hash)
+        required_min_settle_timeout = self.settlement_timeout_min()
+        required_max_settle_timeout = self.settlement_timeout_max()
         invalid_timeout = (
             settle_timeout < required_min_settle_timeout or
             settle_timeout > required_max_settle_timeout
@@ -442,22 +442,16 @@ class TokenNetwork:
             participants_data=participants_data,
         )
 
-    def settlement_timeout_min(
-            self,
-            block_hash: typing.BlockHash,
-    ) -> int:
+    def settlement_timeout_min(self) -> int:
         """ Returns the minimal settlement timeout for the token network. """
         return self.proxy.contract.functions.settlement_timeout_min().call(
-            block_identifier=block_hash,
+            block_identifier='latest',
         )
 
-    def settlement_timeout_max(
-            self,
-            block_hash: typing.BlockHash,
-    ) -> int:
+    def settlement_timeout_max(self) -> int:
         """ Returns the maximal settlement timeout for the token network. """
         return self.proxy.contract.functions.settlement_timeout_max().call(
-            block_identifier=block_hash,
+            block_identifier='latest',
         )
 
     def channel_is_opened(
@@ -728,6 +722,9 @@ class TokenNetwork:
 
             receipt_or_none = check_transaction_threw(self.client, transaction_hash)
 
+            # At this point we have potentially waited for the open transaction to be confirmed
+            # and thus we need an updated block hash
+            latest_block_hash = self.client.block_hash()
             if receipt_or_none:
                 latest_deposit = self.detail_participant(
                     channel_identifier,
@@ -738,7 +735,7 @@ class TokenNetwork:
                 allowance = token.allowance(
                     self.node_address,
                     self.address,
-                    block_hash,
+                    latest_block_hash,
                 )
                 is_allow_sufficient = allowance >= amount_to_deposit
 
@@ -748,7 +745,7 @@ class TokenNetwork:
                         'check concurrent deposits for the same token network '
                         'but different proxies.'
                     )
-                elif token.balance_of(self.node_address, block_hash) < amount_to_deposit:
+                elif token.balance_of(self.node_address, latest_block_hash) < amount_to_deposit:
                     log_msg = "The address doesn't have enough funds"
                 elif latest_deposit < total_deposit:
                     log_msg = 'The tokens were not transferred'
@@ -762,7 +759,7 @@ class TokenNetwork:
                     participant2=partner,
                     channel_identifier=channel_identifier,
                     deposit_amount=total_deposit,
-                    block_hash=block_hash,
+                    block_hash=latest_block_hash,
                 )
 
                 raise TransactionThrew('Deposit', receipt_or_none)
@@ -829,11 +826,12 @@ class TokenNetwork:
             if receipt_or_none:
                 log.critical('closeChannel failed', **log_details)
 
+                latest_block_hash = self.client.block_hash()
                 self._check_channel_state_for_close(
                     participant1=self.node_address,
                     participant2=partner,
                     channel_identifier=channel_identifier,
-                    block_hash=block_hash,
+                    block_hash=latest_block_hash,
                 )
 
                 raise TransactionThrew('Close', receipt_or_none)
@@ -938,6 +936,7 @@ class TokenNetwork:
 
         receipt_or_none = check_transaction_threw(self.client, transaction_hash)
         if receipt_or_none:
+            latest_block_hash = self.client.block_hash()
             if detail.settle_block_number < receipt_or_none['blockNumber']:
                 msg = (
                     'updateNonClosingBalanceProof transaction '
@@ -952,7 +951,7 @@ class TokenNetwork:
                 participant1=self.node_address,
                 participant2=partner,
                 channel_identifier=channel_identifier,
-                block_hash=block_hash,
+                block_hash=latest_block_hash,
             )
             if channel_settled is True:
                 msg = 'Channel is settled'
@@ -970,7 +969,6 @@ class TokenNetwork:
             channel_identifier: typing.ChannelID,
             partner: typing.Address,
             merkle_tree_leaves: typing.MerkleTreeLeaves,
-            block_hash: typing.BlockHash,
     ):
         log_details = {
             'token_network': pex(self.address),
@@ -1007,13 +1005,13 @@ class TokenNetwork:
 
         self.client.poll(transaction_hash)
         receipt_or_none = check_transaction_threw(self.client, transaction_hash)
-
+        latest_block_hash = self.client.block_hash()
         if receipt_or_none:
             channel_settled = self.channel_is_settled(
                 participant1=self.node_address,
                 participant2=partner,
                 channel_identifier=channel_identifier,
-                block_hash=block_hash,
+                block_hash=latest_block_hash,
             )
 
             if channel_settled is False:
@@ -1131,13 +1129,14 @@ class TokenNetwork:
 
             self.client.poll(transaction_hash)
             receipt_or_none = check_transaction_threw(self.client, transaction_hash)
+            latest_block_hash = self.client.block_hash()
             if receipt_or_none:
                 log.critical('settle failed', **log_details)
                 self._check_channel_state_for_settle(
                     participant1=self.node_address,
                     participant2=partner,
                     channel_identifier=channel_identifier,
-                    block_hash=block_hash,
+                    block_hash=latest_block_hash,
                 )
                 raise TransactionThrew('Settle', receipt_or_none)
 
