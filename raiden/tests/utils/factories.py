@@ -1,4 +1,7 @@
 # pylint: disable=too-many-arguments
+import collections
+import inspect
+import itertools
 import random
 import string
 
@@ -50,8 +53,20 @@ def make_uint64() -> int:
     return random.randint(0, UINT64_MAX)
 
 
+def make_balance() -> typing.Balance:
+    return typing.Balance(random.randint(0, UINT256_MAX))
+
+
+def make_block_number() -> typing.BlockNumber:
+    return typing.BlockNumber(random.randint(0, UINT256_MAX))
+
+
+def make_chain_id() -> typing.ChainID:
+    return typing.ChainID(random.randint(0, UINT64_MAX))
+
+
 def make_message_identifier() -> typing.MessageID:
-    return typing.MessageID(make_uint64())
+    return typing.MessageID(random.randint(0, UINT64_MAX))
 
 
 def make_20bytes() -> bytes:
@@ -566,6 +581,282 @@ def make_transfers_pair(privatekeys, amount, block_number):
     return channel_map, transfers_pair
 
 
+# Goals:
+# - Make it easier to write tests:
+#   - Reduce the number of variables a test needs to manage by introducing hidden state
+#   - Automate duplicated tasks:
+#     - Creating topologies
+#   - Easy to control the messages sent/received:
+#     - Simulate concurrency by interleaving state changes for differents transfers
+#     - Simulate networks problems by delaying/replaying/dropping state changes
+#     - Simulate attacks by producing invalid state changes (with or without valid signatures)
+#   - Easy to test multiple nodes:
+#     - To test both ends of a channel and simulate a network
+#   - Easy to assert on valid states:
+#     - Needs to take into account difference of views of both nodes:
+#       - assertions that are valid globally
+#       - assertions that are valid locally
+#       - assertions that are valid after a given state change
+
+
+def get_defaults(argspec):
+    """ Returns a dictionary with the default arguments of a function.
+
+    This handles defaults for keyword only and normal arguments.
+    """
+    # This assumes the language forbids duplicate names for function arguments
+    if argspec.kwonlydefaults is not None:
+        args = dict(argspec.kwonlydefaults)
+    else:
+        args = dict()
+
+    if argspec.defaults is not None:
+        positional_with_defaults = argspec.args[-len(argspec.defaults):]
+        args.update(zip(positional_with_defaults, argspec.defaults))
+
+    return args
+
+
+def make_chainmap(defaults):
+    """ Returns a ChainMap create out of defaults. """
+    if defaults is not None and not isinstance(defaults, collections.ChainMap):
+        variables = collections.ChainMap(defaults)
+    elif defaults is None:
+        variables = collections.ChainMap()
+    else:
+        variables = defaults
+
+    return variables
+
+
+def _rank_annotations(annotations, cache: dict) -> None:
+    """ Rank annotations by simplicity.
+
+    This algorithm is intentionally recursive, this will raise RecursionError
+    if there are reference cycles which are not supported.
+    """
+    for func in annotations:
+        rank = cache.get(func, EMPTY)
+
+        if rank is not EMPTY:
+            continue
+
+        try:
+            argspec = inspect.getfullargspec(func)
+        except TypeError:
+            # Assume it's a builtin without arguments. If it's a c function
+            # with more then one argument, for this to work it needs to
+            # wrapped with a python function that exposes the argspec
+            cache[func] = 1
+        else:
+            rank = 0
+            for arg in argspec.args + argspec.kwonlyargs:
+                subfunc = argspec.annotations.get(arg, EMPTY)
+                if subfunc is not EMPTY:
+                    _rank_annotations([subfunc], cache)
+                    rank += cache[subfunc]
+                else:
+                    rank += 1
+
+            cache[func] = rank
+
+
+def order_by_simplicity(  # pylint: disable=dangerous-default-value
+        annotations,
+        cache=dict(),  # NOQA
+):
+    """ Return the annotations ordered by simplicity. """
+    _rank_annotations(annotations, cache)
+
+    classification = dict()
+    for func in annotations:
+        rank = cache.get(func, EMPTY)
+        classification.setdefault(rank, list()).append(func)
+
+    ordered = itertools.chain.from_iterable(
+        items
+        for _, items in sorted(classification.items())
+    )
+    return list(ordered)
+
+
+class Forestry:
+    """ A factory for objects with a nursery to share state.
+
+    Note:
+        This factory will only work with classes which are structured in trees,
+        if there are reference cycles it can not be used.
+    """
+
+    def __init__(self, defaults: dict = None, factories: dict = None):
+        # name alone is not a good enough key to select values, consider this
+        # name collision:
+        #
+        # def f(id: A, b: g): pass
+        # def g(id: B)
+        #
+        # If the arguments are define only by name, then `g` will be called
+        # with an invalid type. Additionally, it's not possible to do
+        # isinstance checks because either A or B could be a typing type.
+        self.nursery = make_chainmap(defaults)
+        self.factories = factories or dict()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
+
+    def __getitem__(self, key):
+        return self.nursery[key]
+
+    def __setitem__(self, key, value):
+        self.nursery[key] = value
+
+    def __delitem__(self, key):
+        del self.nursery[key]
+
+    def overwrite(self, **overwrites):
+        return Forestry(self.nursery.new_child(overwrites))
+
+    def create(self, what):
+        """ Create an instance of `what`.
+
+        If there is a factory associated with `what`, this factory function is
+        called, and the arguments passed to it are the ones in this nursery.
+
+        Values currently in the nursery always have priority. If there is no
+        value for the given argument but `func` has a default argument, that is
+        used instead of creating a new object. Otherwise a new object is
+        created.
+
+        Object creation follows a simple rule: types are ranked by simplicity
+        and the simplest are created first. The simplicity is a partial order
+        of types, determined by the total number of dependencies required to
+        createa an instance of it. An object without any dependencies is the
+        simplest, an object with one argument the next, and so on. Objects with
+        the same rank will be created in order of declaration.
+
+        The creation order rule is used to make it easier to share state of
+        parent objects with child objects.
+
+        Note:
+            varargs is ignored, it cannot be called by keyword
+
+        Raises:
+            TypeError: if costructing the argument for func failed.
+            RecursionError: if there are reference cycles.
+        """
+        factory = self.factories.get(what, what)
+
+        if not callable(factory):
+            raise ValueError(
+                f'Cant create an instance of {repr(what)} because it is not '
+                f'callable and there is no factory associated to it.',
+            )
+
+        try:
+            # If there are missing arguments, create a new nursery. This allow
+            # random factories to create instantiate different objects which
+            # share a subset of the state.
+            extra_args = self.missing_callargs_for(factory)
+            if extra_args:
+                return self.overwrite(**extra_args).create(what)
+
+            call_args = self.callargs_for(factory)
+            instance = factory(**call_args)
+        except TypeError:
+            # builtins raise type error on inspect, assume no arguments
+            instance = factory()
+
+        return instance
+
+    def missing_callargs_for(self, func):
+        """ Return a dictionary with arguments which missing from the current
+        nursery to call func.
+
+        This will create objects following the simplicity rule *without*
+        updating the current nursery.
+
+        The /simplicity rule/ is applied to the annotation of *func* and /not/
+        the corresponding factory, if any. It also ignores if there are any
+        dependencies already in the nursery.
+
+        The nursery is not updated because otherwise /every/ subsequent object
+        would always be equal, where the intended behavior is just for them to
+        share some of the state.
+
+        Note:
+            Not all names to will necessarily have a value, meaning the
+            function call may fail. This is intentional to allow methods to be
+            called, where the variable `self` must not be assigned. This will
+            intentionally not work with unbound functions.
+
+        Raises:
+            TypeError: if func cannot be inspected.
+            RecursionError: if there are reference cycles.
+        """
+        argspec = inspect.getfullargspec(func)
+        callargs = get_defaults(argspec)
+        argument_names = argspec.args + argspec.kwonlyargs
+
+        missing_annotations = list()
+        for name in argument_names:
+            annotation = argspec.annotations.get(name, EMPTY)
+
+            # Only creates values for missing values which have a type
+            # annotation. This handles methods, which have a default value for
+            # `self` injected by language runtime.
+            add_missing = (
+                name not in self.nursery and
+                name not in callargs and
+                annotation is not EMPTY and
+                annotation not in self.nursery
+            )
+
+            if add_missing:
+                missing_annotations.append(annotation)
+
+        missing_callargs = dict()
+        for missing in order_by_simplicity(missing_annotations):
+            missing_callargs[missing] = self.create(missing)
+
+        return missing_callargs
+
+    def callargs_for(self, func):
+        """ Return a dictionary with arguments from the nursey which are
+        necessary to call func.
+
+        Note:
+            Not all names to will necessarily have a value, meaning the
+            function call may fail. This is intentional to allow methods to be
+            called, where the variable `self` must not be assigned. This will
+            intentionally not work with unbound functions.
+        """
+        argspec = inspect.getfullargspec(func)
+        callargs = get_defaults(argspec)
+        argument_names = argspec.args + argspec.kwonlyargs
+
+        for name in argument_names:
+            annotation = argspec.annotations.get(name)
+            value_by_type = self.nursery.get(annotation, EMPTY)
+            value_by_name = self.nursery.get(name, EMPTY)
+
+            # value by name takes priority because it makes possible to provide
+            # different values for the same type. Consider the function:
+            #
+            # def f(a: int, b: int): pass
+            #
+            # If the value by type had priority then it's not possible to
+            # provide differents values for a and b
+            if value_by_name is not EMPTY:
+                callargs[name] = value_by_name
+            elif value_by_type is not EMPTY:
+                callargs[name] = value_by_type
+
+        return callargs
+
+
 # ALIASES
 make_channel = make_channel_state
 route_from_channel = make_route_from_channel
@@ -607,3 +898,16 @@ HOP6 = privatekey_to_address(b'66666666666666666666666666666666')
 UNIT_CHAIN_ID = 337
 ADDR = b'addraddraddraddraddr'
 UNIT_TRANSFER_DESCRIPTION = make_transfer_description(secret=UNIT_SECRET)
+
+
+RANDOM_FACTORIES = {
+    typing.Address: make_address,
+    typing.Balance: make_balance,
+    typing.BlockNumber: make_block_number,
+    typing.BlockTimeout: make_block_number,
+    typing.ChainID: make_chain_id,
+    typing.ChannelID: make_channel_identifier,
+    typing.PaymentNetworkID: make_payment_network_identifier,
+    typing.TokenNetworkID: make_payment_network_identifier,
+    NettingChannelState: make_channel_state,
+}
