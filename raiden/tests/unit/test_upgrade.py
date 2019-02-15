@@ -30,10 +30,8 @@ def test_upgrade_manager_restores_backup(tmp_path):
 
     old_db_filename = tmp_path / Path('v16_log.db')
 
-    storage = setup_storage(old_db_filename)
-
     with patch('raiden.storage.sqlite.RAIDEN_DB_VERSION', new=16):
-        storage.update_version()
+        storage = setup_storage(old_db_filename)
         storage.conn.close()
 
     with patch('raiden.utils.upgrades.older_db_file') as older_db_file:
@@ -74,7 +72,6 @@ def test_sequential_version_numbers(tmp_path):
 
     with patch('raiden.storage.sqlite.RAIDEN_DB_VERSION', new=16):
         storage = setup_storage(old_db_filename)
-        storage.update_version()
         storage.conn.close()
 
     with ExitStack() as stack:

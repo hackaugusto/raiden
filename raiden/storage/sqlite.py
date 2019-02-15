@@ -63,6 +63,13 @@ class SQLiteStorage(SerializationBase):
 
         with conn:
             conn.executescript(DB_SCRIPT_CREATE_TABLES)
+            version = conn.execute('SELECT 1 FROM settings WHERE name="version"').fetchone()
+
+            if version is None:
+                conn.execute(
+                    'INSERT OR REPLACE INTO settings(name, value) VALUES(?, ?)',
+                    ('version', str(RAIDEN_DB_VERSION)),
+                )
 
         # When writting to a table where the primary key is the identifier and we want
         # to return said identifier we use cursor.lastrowid, which uses sqlite's last_insert_rowid
@@ -79,15 +86,6 @@ class SQLiteStorage(SerializationBase):
         self.conn = conn
         self.write_lock = threading.Lock()
         self.in_transaction = False
-        self.update_version()
-
-    def update_version(self):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            'INSERT OR REPLACE INTO settings(name, value) VALUES(?, ?)',
-            ('version', str(RAIDEN_DB_VERSION)),
-        )
-        self.maybe_commit()
 
     def log_run(self):
         """ Log timestamp and raiden version to help with debugging """
