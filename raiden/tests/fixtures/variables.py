@@ -13,6 +13,7 @@ from raiden.settings import (
     DEFAULT_RETRY_TIMEOUT,
     DEFAULT_TRANSPORT_THROTTLE_CAPACITY,
     DEFAULT_TRANSPORT_THROTTLE_FILL_RATE,
+    GAS_LIMIT,
 )
 from raiden.tests.utils.factories import UNIT_CHAIN_ID
 from raiden.utils import privatekey_to_address, sha3
@@ -53,6 +54,11 @@ def settle_timeout(reveal_timeout):
 def chain_id():
     # This value must be used in the `--networkid` option for the geth client
     return UNIT_CHAIN_ID
+
+
+@pytest.fixture
+def chain_initial_gas_limit():
+    return GAS_LIMIT
 
 
 @pytest.fixture

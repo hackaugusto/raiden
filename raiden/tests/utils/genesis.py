@@ -26,74 +26,74 @@ GENESIS_STUB = {
     'alloc': {'%040x' % precompiled: {'balance': '0x1'} for precompiled in range(256)},
 }
 PARITY_CHAIN_SPEC_STUB = {
-    "name": "RaidenTestChain",
-    "engine": {
-        "authorityRound": {
-            "params": {
-                "stepDuration": 1,
+    'name': 'RaidenTestChain',
+    'engine': {
+        'authorityRound': {
+            'params': {
+                'stepDuration': 1,
             },
         },
     },
-    "params": {
-        "gasLimitBoundDivisor": "0x0400",
-        "maximumExtraDataSize": "0x20",
-        "minGasLimit": "0x1388",
-        "networkID": 0,
-        "eip155Transition": "0x0",
-        "eip98Transition": "0x7fffffffffffff",
-        "eip140Transition": "0x0",
-        "eip160Transition": "0x0",
-        "eip210Transition": "0x0",
-        "eip211Transition": "0x0",
-        "eip214Transition": "0x0",
-        "eip658Transition": "0x0",
-        "eip145Transition": "0x0",
-        "eip1014Transition": "0x0",
-        "eip1052Transition": "0x0",
+    'params': {
+        'gasLimitBoundDivisor': '0x0400',
+        'maximumExtraDataSize': '0x20',
+        'minGasLimit': '0x1388',
+        'networkID': 0,
+        'eip155Transition': '0x0',
+        'eip98Transition': '0x7fffffffffffff',
+        'eip140Transition': '0x0',
+        'eip160Transition': '0x0',
+        'eip210Transition': '0x0',
+        'eip211Transition': '0x0',
+        'eip214Transition': '0x0',
+        'eip658Transition': '0x0',
+        'eip145Transition': '0x0',
+        'eip1014Transition': '0x0',
+        'eip1052Transition': '0x0',
     },
-    "genesis": {
-        "seal": {
-            "authorityRound": {
-                "step": "0x0",
-                "signature": (
-                    "0x00000000000000000000000000000000000000000000000000000000000000000"
-                    "00000000000000000000000000000000000000000000000000000000000000000"
+    'genesis': {
+        'seal': {
+            'authorityRound': {
+                'step': '0x0',
+                'signature': (
+                    '0x00000000000000000000000000000000000000000000000000000000000000000'
+                    '00000000000000000000000000000000000000000000000000000000000000000'
                 ),
             },
         },
-        "difficulty": "0x20000",
-        "author": "0x0000000000000000000000000000000000000000",
-        "timestamp": "0x00",
-        "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-        "gasLimit": "0x2540BE400",
+        'difficulty': '0x20000',
+        'author': '0x0000000000000000000000000000000000000000',
+        'timestamp': '0x00',
+        'parentHash': '0x0000000000000000000000000000000000000000000000000000000000000000',
+        'gasLimit': GAS_LIMIT_HEX,
     },
-    "accounts": {
-        "0x0000000000000000000000000000000000000001": {
-            "balance": "1",
-            "builtin": {
-                "name": "ecrecover",
-                "pricing": {"linear": {"base": 3000, "word": 0}},
+    'accounts': {
+        '0x0000000000000000000000000000000000000001': {
+            'balance': '1',
+            'builtin': {
+                'name': 'ecrecover',
+                'pricing': {'linear': {'base': 3000, 'word': 0}},
             },
         },
-        "0x0000000000000000000000000000000000000002": {
-            "balance": "1",
-            "builtin": {
-                "name": "sha256",
-                "pricing": {"linear": {"base": 60, "word": 12}},
+        '0x0000000000000000000000000000000000000002': {
+            'balance': '1',
+            'builtin': {
+                'name': 'sha256',
+                'pricing': {'linear': {'base': 60, 'word': 12}},
             },
         },
-        "0x0000000000000000000000000000000000000003": {
-            "balance": "1",
-            "builtin": {
-                "name": "ripemd160",
-                "pricing": {"linear": {"base": 600, "word": 120}},
+        '0x0000000000000000000000000000000000000003': {
+            'balance': '1',
+            'builtin': {
+                'name': 'ripemd160',
+                'pricing': {'linear': {'base': 600, 'word': 120}},
             },
         },
-        "0x0000000000000000000000000000000000000004": {
-            "balance": "1",
-            "builtin": {
-                "name": "identity",
-                "pricing": {"linear": {"base": 15, "word": 3}},
+        '0x0000000000000000000000000000000000000004': {
+            'balance': '1',
+            'builtin': {
+                'name': 'identity',
+                'pricing': {'linear': {'base': 15, 'word': 3}},
             },
         },
     },

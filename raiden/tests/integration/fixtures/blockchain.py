@@ -44,6 +44,7 @@ def web3(
         request,
         tmpdir,
         chain_id,
+        chain_initial_gas_limit,
 ):
     """ Starts a private chain with accounts funded. """
     # include the deploy key in the list of funded accounts
@@ -96,6 +97,7 @@ def web3(
         prefunded_accounts=accounts_to_fund,
         chain_id=chain_id,
         random_marker=random_marker,
+        initial_gas_limit=chain_initial_gas_limit,
     )
     eth_node_runner = run_private_blockchain(
         web3=web3,

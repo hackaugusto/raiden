@@ -9,7 +9,13 @@ from typing import ContextManager
 import gevent
 import structlog
 from eth_keyfile import create_keyfile_json
-from eth_utils import encode_hex, remove_0x_prefix, to_checksum_address, to_normalized_address
+from eth_utils import (
+    encode_hex,
+    remove_0x_prefix,
+    to_checksum_address,
+    to_hex,
+    to_normalized_address,
+)
 from web3 import Web3
 
 from raiden.tests.fixtures.constants import DEFAULT_BALANCE_BIN, DEFAULT_PASSPHRASE
@@ -53,6 +59,7 @@ class GenesisDescription(NamedTuple):
     prefunded_accounts: List[bytes]
     random_marker: str
     chain_id: int
+    initial_gas_limit: int
 
 
 def geth_clique_extradata(extra_vanity, extra_seal):
@@ -98,6 +105,8 @@ def geth_to_cmd(
         'minerthreads',
         'unlock',
         'password',
+        'cache',
+        'trie-cache-gens',
     ]
 
     cmd = ['geth']
@@ -229,6 +238,8 @@ def parity_generate_chain_spec(
     chain_spec['accounts'].update(alloc)
     chain_spec['engine']['authorityRound']['params']['validators'] = validators
     chain_spec['genesis']['extraData'] = extra_data
+    chain_spec['genesis']['gasLimit'] = to_hex(genesis_description.initial_gas_limit)
+
     with open(genesis_path, "w") as spec_file:
         json.dump(chain_spec, spec_file)
 
@@ -259,6 +270,7 @@ def geth_generate_poa_genesis(
     genesis['config']['ChainID'] = genesis_description.chain_id
     genesis['config']['clique'] = {'period': 1, 'epoch': 30000}
     genesis['extraData'] = extra_data
+    genesis['gasLimit'] = to_hex(genesis_description.initial_gas_limit)
 
     with open(genesis_path, 'w') as handler:
         json.dump(genesis, handler)

@@ -6,6 +6,7 @@ import tempfile
 from eth_utils import remove_0x_prefix
 from web3 import HTTPProvider, Web3
 
+from raiden.settings import GAS_LIMIT
 from raiden.tests.utils.eth_node import (
     EthNodeDescription,
     GenesisDescription,
@@ -63,6 +64,7 @@ def main():
         prefunded_accounts=DEFAULT_ACCOUNTS,
         random_marker=random_marker,
         chain_id=NETWORKNAME_TO_ID['smoketest'],
+        initial_gas_limit=GAS_LIMIT,
     )
     private_chain = run_private_blockchain(  # NOQA
         web3=web3,

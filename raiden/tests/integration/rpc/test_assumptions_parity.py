@@ -17,6 +17,7 @@ STATE_PRUNNING = {
 }
 
 
+@pytest.mark.parametrize('chain_initial_gas_limit', [10000000000])
 @pytest.mark.parametrize('blockchain_extra_config', [STATE_PRUNNING])
 def test_parity_request_prunned_data_raises_an_exception(deploy_client):
     """ Interacting with an old block identifier with a pruning client throws. """
