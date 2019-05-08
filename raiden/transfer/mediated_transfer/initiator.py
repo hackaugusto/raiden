@@ -115,7 +115,7 @@ def handle_block(
 
     events: List[Event] = list()
 
-    if lock_has_expired:
+    if lock_has_expired and initiator_state.transfer_state != "transfer_expired":
         is_channel_open = channel.get_status(channel_state) == CHANNEL_STATE_OPENED
         if is_channel_open:
             expired_lock_events = channel.events_for_expired_lock(
@@ -153,6 +153,7 @@ def handle_block(
         lock_exists = channel.lock_exists_in_either_channel_side(
             channel_state=channel_state, secrethash=secrethash
         )
+        initiator_state.transfer_state = "transfer_expired"
 
         return TransitionResult(
             # If the lock is either in our state or partner state we keep the
@@ -191,7 +192,9 @@ def next_channel_from_routes(
         if channel.get_status(channel_state) != CHANNEL_STATE_OPENED:
             continue
 
-        pending_transfers = channel.get_number_of_pending_transfers(channel_state.our_state)
+        pending_transfers = channel.get_number_of_pending_transfers(
+            channel_state.our_state
+        )
         if pending_transfers >= MAXIMUM_PENDING_TRANSFERS:
             continue
 
@@ -267,9 +270,14 @@ def send_lockedtransfer(
     block_number: BlockNumber,
 ) -> SendLockedTransfer:
     """ Create a mediated transfer using channel. """
-    assert channel_state.token_network_identifier == transfer_description.token_network_identifier
+    assert (
+        channel_state.token_network_identifier
+        == transfer_description.token_network_identifier
+    )
 
-    lock_expiration = get_initial_lock_expiration(block_number, channel_state.reveal_timeout)
+    lock_expiration = get_initial_lock_expiration(
+        block_number, channel_state.reveal_timeout
+    )
 
     # The payment amount and the fee amount must be included in the locked
     # amount, as a guarantee to the mediator that the fee will be claimable
@@ -419,7 +427,9 @@ def handle_onchain_secretreveal(
         state_change=state_change, transfer_secrethash=secrethash, secret=secret
     )
     is_channel_open = channel.get_status(channel_state) == CHANNEL_STATE_OPENED
-    is_lock_expired = state_change.block_number > initiator_state.transfer.lock.expiration
+    is_lock_expired = (
+        state_change.block_number > initiator_state.transfer.lock.expiration
+    )
 
     is_lock_unlocked = is_valid_secret and not is_lock_expired
 
