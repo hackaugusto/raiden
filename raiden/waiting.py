@@ -57,10 +57,7 @@ def wait_for_newchannel(
         This does not time out, use gevent.Timeout.
     """
     channel_state = views.get_channelstate_for(
-        views.state_from_raiden(raiden),
-        payment_network_id,
-        token_address,
-        partner_address,
+        views.state_from_raiden(raiden), payment_network_id, token_address, partner_address
     )
 
     while channel_state is None:
@@ -69,10 +66,7 @@ def wait_for_newchannel(
 
         gevent.sleep(retry_timeout)
         channel_state = views.get_channelstate_for(
-            views.state_from_raiden(raiden),
-            payment_network_id,
-            token_address,
-            partner_address,
+            views.state_from_raiden(raiden), payment_network_id, token_address, partner_address
         )
 
 
@@ -98,10 +92,7 @@ def wait_for_participant_newbalance(
         raise ValueError("target_address must be one of the channel participants")
 
     channel_state = views.get_channelstate_for(
-        views.state_from_raiden(raiden),
-        payment_network_id,
-        token_address,
-        partner_address,
+        views.state_from_raiden(raiden), payment_network_id, token_address, partner_address
     )
 
     while balance(channel_state) < target_balance:
@@ -110,10 +101,7 @@ def wait_for_participant_newbalance(
 
         gevent.sleep(retry_timeout)
         channel_state = views.get_channelstate_for(
-            views.state_from_raiden(raiden),
-            payment_network_id,
-            token_address,
-            partner_address,
+            views.state_from_raiden(raiden), payment_network_id, token_address, partner_address
         )
 
 
@@ -146,10 +134,7 @@ def wait_for_payment_balance(
         raise ValueError("target_address must be one of the channel participants")
 
     channel_state = views.get_channelstate_for(
-        views.state_from_raiden(raiden),
-        payment_network_id,
-        token_address,
-        partner_address,
+        views.state_from_raiden(raiden), payment_network_id, token_address, partner_address
     )
 
     while balance(channel_state) < target_balance:
@@ -159,10 +144,7 @@ def wait_for_payment_balance(
         log.critical("wait", b=balance(channel_state), t=target_balance)
         gevent.sleep(retry_timeout)
         channel_state = views.get_channelstate_for(
-            views.state_from_raiden(raiden),
-            payment_network_id,
-            token_address,
-            partner_address,
+            views.state_from_raiden(raiden), payment_network_id, token_address, partner_address
         )
 
 
@@ -185,9 +167,7 @@ def wait_for_channel_in_states(
     """
     chain_state = views.state_from_raiden(raiden)
     token_network = views.get_token_network_by_token_address(
-        chain_state=chain_state,
-        payment_network_id=payment_network_id,
-        token_address=token_address,
+        chain_state=chain_state, payment_network_id=payment_network_id, token_address=token_address
     )
 
     if token_network is None:
@@ -301,13 +281,10 @@ def wait_for_settle_all_channels(raiden: "RaidenService", retry_timeout: float) 
     id_paymentnetworkstate = chain_state.identifiers_to_paymentnetworks.items()
     for payment_network_id, payment_network_state in id_paymentnetworkstate:
 
-        id_tokennetworkstate = (
-            payment_network_state.tokenidentifiers_to_tokennetworks.items()
-        )
+        id_tokennetworkstate = payment_network_state.tokenidentifiers_to_tokennetworks.items()
         for token_network_id, token_network_state in id_tokennetworkstate:
             channel_ids = cast(
-                List[ChannelID],
-                token_network_state.channelidentifiers_to_channels.keys(),
+                List[ChannelID], token_network_state.channelidentifiers_to_channels.keys()
             )
 
             wait_for_settle(
@@ -319,9 +296,7 @@ def wait_for_settle_all_channels(raiden: "RaidenService", retry_timeout: float) 
             )
 
 
-def wait_for_healthy(
-    raiden: "RaidenService", node_address: Address, retry_timeout: float
-) -> None:
+def wait_for_healthy(raiden: "RaidenService", node_address: Address, retry_timeout: float) -> None:
     """Wait until `node_address` becomes healthy.
 
     Note:
@@ -353,6 +328,7 @@ def wait_for_transfer_success(
     while not found:
         assert raiden, TRANSPORT_ERROR_MSG
         assert raiden.transport, TRANSPORT_ERROR_MSG
+        assert raiden.wal, TRANSPORT_ERROR_MSG
 
         state_events = raiden.wal.storage.get_events()
         for event in state_events:

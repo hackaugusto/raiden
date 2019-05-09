@@ -152,8 +152,7 @@ def create_channel_from_models(our_model, partner_model, partner_pkey):
         )
     )
     partner_signed = make_signed_balance_proof_from_unsigned(
-        partner_unsigned,
-        LocalSigner(partner_pkey),
+        partner_unsigned, LocalSigner(partner_pkey)
     )
 
     channel_state.our_state.balance_proof = our_unsigned
@@ -1336,9 +1335,7 @@ def test_refund_transfer_does_not_match_received():
     expiration = 50
     target = UNIT_TRANSFER_SENDER
     transfer = create(
-        LockedTransferUnsignedStateProperties(
-            amount=amount, target=target, expiration=expiration
-        )
+        LockedTransferUnsignedStateProperties(amount=amount, target=target, expiration=expiration)
     )
 
     refund_from_target = create(

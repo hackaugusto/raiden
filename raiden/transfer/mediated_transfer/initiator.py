@@ -192,9 +192,7 @@ def next_channel_from_routes(
         if channel.get_status(channel_state) != CHANNEL_STATE_OPENED:
             continue
 
-        pending_transfers = channel.get_number_of_pending_transfers(
-            channel_state.our_state
-        )
+        pending_transfers = channel.get_number_of_pending_transfers(channel_state.our_state)
         if pending_transfers >= MAXIMUM_PENDING_TRANSFERS:
             continue
 
@@ -270,14 +268,9 @@ def send_lockedtransfer(
     block_number: BlockNumber,
 ) -> SendLockedTransfer:
     """ Create a mediated transfer using channel. """
-    assert (
-        channel_state.token_network_identifier
-        == transfer_description.token_network_identifier
-    )
+    assert channel_state.token_network_identifier == transfer_description.token_network_identifier
 
-    lock_expiration = get_initial_lock_expiration(
-        block_number, channel_state.reveal_timeout
-    )
+    lock_expiration = get_initial_lock_expiration(block_number, channel_state.reveal_timeout)
 
     # The payment amount and the fee amount must be included in the locked
     # amount, as a guarantee to the mediator that the fee will be claimable
@@ -427,9 +420,7 @@ def handle_onchain_secretreveal(
         state_change=state_change, transfer_secrethash=secrethash, secret=secret
     )
     is_channel_open = channel.get_status(channel_state) == CHANNEL_STATE_OPENED
-    is_lock_expired = (
-        state_change.block_number > initiator_state.transfer.lock.expiration
-    )
+    is_lock_expired = state_change.block_number > initiator_state.transfer.lock.expiration
 
     is_lock_unlocked = is_valid_secret and not is_lock_expired
 

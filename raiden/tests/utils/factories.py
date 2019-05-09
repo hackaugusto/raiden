@@ -1,9 +1,9 @@
 # pylint: disable=too-many-arguments
 import random
 import string
+from dataclasses import dataclass, fields, replace
 from functools import singledispatch
 
-from dataclasses import dataclass, fields, replace
 from eth_utils import to_checksum_address
 
 from raiden.constants import EMPTY_MERKLE_ROOT, UINT64_MAX, UINT256_MAX
@@ -469,8 +469,7 @@ BalanceProofSignedStateProperties.DEFAULTS = BalanceProofSignedStateProperties(
 
 
 def make_signed_balance_proof_from_unsigned(
-    unsigned: BalanceProofUnsignedState,
-    signer: Signer,
+    unsigned: BalanceProofUnsignedState, signer: Signer
 ) -> BalanceProofSignedState:
     balance_hash = hash_balance_data(
         transferred_amount=unsigned.transferred_amount,
@@ -701,7 +700,7 @@ def make_signed_transfer_for(
     elif properties.sender == channel_state.partner_state.address:
         recipient = channel_state.our_state.address
     else:
-        assert False, "Given sender does not participate in given channel."
+        raise RuntimeError("Given sender does not participate in given channel.")
 
     if compute_locksroot:
         lock = Lock(

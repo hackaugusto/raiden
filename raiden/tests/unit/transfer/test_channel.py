@@ -82,38 +82,27 @@ def test_channel_cleared_after_all_unlocks():
         block_number=1,
         block_hash=make_block_hash(),
     )
-    iteration = channel.state_transition(
-        channel_state,
-        settle_channel,
-        block_number,
-        block_hash
-    )
+    iteration = channel.state_transition(channel_state, settle_channel, block_number, block_hash)
 
     batch_unlock = make_unlock(channel_state.our_state, channel_state.partner_state)
     iteration = channel.state_transition(
-        iteration.new_state,
-        batch_unlock,
-        block_number,
-        block_hash
+        iteration.new_state, batch_unlock, block_number, block_hash
     )
-    msg = 'partner locksroot is not unlocked, channel should not have been cleaned'
+    msg = "partner locksroot is not unlocked, channel should not have been cleaned"
     assert iteration.new_state is not None, msg
 
     # processing the same unlock twice must not count
     iteration = channel.state_transition(
-        iteration.new_state,
-        batch_unlock,
-        block_number,
-        block_hash
+        iteration.new_state, batch_unlock, block_number, block_hash
     )
-    msg = 'partner locksroot is not unlocked, channel should not have been cleaned'
+    msg = "partner locksroot is not unlocked, channel should not have been cleaned"
     assert iteration.new_state is not None, msg
 
     iteration = channel.state_transition(
         iteration.new_state,
         make_unlock(channel_state.partner_state, channel_state.our_state),
         block_number,
-        block_hash
+        block_hash,
     )
-    msg = 'all unlocks have been done, channel must be cleared'
+    msg = "all unlocks have been done, channel must be cleared"
     assert iteration.new_state is None, msg

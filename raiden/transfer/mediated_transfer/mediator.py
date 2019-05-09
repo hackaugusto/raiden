@@ -332,14 +332,15 @@ def sanity_check(state: MediatorTransferState, channelidentifiers_to_channels: C
 
 
 def clear_if_finalized(
-    iteration: TransitionResult, channelidentifiers_to_channels: ChannelMap
-) -> TransitionResult[MediatorTransferState]:
+    iteration: TransitionResult[Optional[MediatorTransferState]],
+    channelidentifiers_to_channels: ChannelMap,
+) -> TransitionResult[Optional[MediatorTransferState]]:
     """Clear the mediator task if all the locks have been finalized.
 
     A lock is considered finalized if it has been removed from the merkle tree
     offchain, either because the transfer was unlocked or expired, or because the
     channel was settled on chain and therefore the channel is removed."""
-    state = cast(MediatorTransferState, iteration.new_state)
+    state = iteration.new_state
 
     if state is None:
         return iteration
@@ -1453,7 +1454,7 @@ def state_transition(
     pseudo_random_generator: random.Random,
     block_number: BlockNumber,
     block_hash: BlockHash,
-) -> TransitionResult[MediatorTransferState]:
+) -> TransitionResult[Optional[MediatorTransferState]]:
     """ State machine for a node mediating a transfer. """
     # pylint: disable=too-many-branches
     # Notes:
@@ -1462,7 +1463,7 @@ def state_transition(
     #   doesn't control the secret reveal and needs to wait for the lock
     #   expiration before safely discarding the transfer.
 
-    iteration = TransitionResult(mediator_state, list())
+    iteration: TransitionResult[Optional[MediatorTransferState]] = TransitionResult(mediator_state, list())
 
     if type(state_change) == ActionInitMediator:
         assert isinstance(state_change, ActionInitMediator), MYPY_ANNOTATION

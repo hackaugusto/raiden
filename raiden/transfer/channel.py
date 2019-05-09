@@ -1808,8 +1808,8 @@ def handle_channel_batch_unlock(
 
         # only clear the channel state once all unlocks have been done
         no_unlock_left_to_do = (
-            our_state.onchain_locksroot == EMPTY_MERKLE_ROOT and
-            partner_state.onchain_locksroot == EMPTY_MERKLE_ROOT
+            our_state.onchain_locksroot == EMPTY_MERKLE_ROOT
+            and partner_state.onchain_locksroot == EMPTY_MERKLE_ROOT
         )
         if no_unlock_left_to_do:
             new_channel_state = None

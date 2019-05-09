@@ -1575,6 +1575,6 @@ def test_regression_payment_unlock_failed_event_must_be_emitted_only_once():
         pseudo_random_generator=pseudo_random_generator,
         block_number=next_block_after_expiry,
     )
-    msg = 'failed event must not be emitted twice'
+    msg = "failed event must not be emitted twice"
     assert search_for_item(iteration.events, EventPaymentSentFailed, {}) is None, msg
     assert search_for_item(iteration.events, EventUnlockFailed, {}) is None, msg
