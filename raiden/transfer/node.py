@@ -66,13 +66,12 @@ from raiden.transfer.state_change import (
 )
 from raiden.utils.typing import (
     MYPY_ANNOTATION,
-    Any,
     BlockHash,
     BlockNumber,
     ChannelID,
     ChannelMap,
+    Dict,
     List,
-    Mapping,
     NodeNetworkStateMap,
     Optional,
     PaymentNetworkID,
@@ -83,6 +82,7 @@ from raiden.utils.typing import (
     Tuple,
     Union,
 )
+from raiden.transfer.subdispatch import subdispatch
 
 # All State changes that are subdispatched as token network actions
 TokenNetworkStateChange = Union[
@@ -98,15 +98,9 @@ TokenNetworkStateChange = Union[
 ]
 
 
-ContainerState = Mapping
-Key = Any
-StateEnvironment = List[Tuple[ContainerState, Key]]
-StatePipeline = Sequence[Tuple[StateEnvironment, Optional[State]]]
-
-
 def get_networks(
     chain_state: ChainState,
-    token_network_address: TokenNetworkAddress,
+    token_network_address: Union[TokenNetworkID, TokenNetworkAddress],
 ) -> Tuple[Optional[PaymentNetworkState], Optional[TokenNetworkState]]:
     token_network_state = None
     payment_network_state = None
@@ -127,41 +121,6 @@ def get_networks(
     return payment_network_state, token_network_state
 
 
-def get_token_network_by_address(
-    chain_state: ChainState, token_network_address: Union[TokenNetworkID, TokenNetworkAddress]
-) -> Optional[TokenNetworkState]:
-    payment_network_identifier = chain_state.tokennetworkaddresses_to_paymentnetworkaddresses.get(
-        TokenNetworkAddress(token_network_address)
-    )
-
-    payment_network_state = None
-    if payment_network_identifier:
-        payment_network_state = chain_state.identifiers_to_paymentnetworks.get(
-            payment_network_identifier
-        )
-
-    token_network_state = None
-    if payment_network_state:
-        token_network_state = payment_network_state.tokenidentifiers_to_tokennetworks.get(
-            TokenNetworkID(token_network_address)
-        )
-
-    return token_network_state
-
-
-def update_environments(
-    environments: StateEnvironment,
-    transition: TransitionResult,
-):
-    for container, key in environments:
-        # Handles cleanup:
-        # - When the task becomes `None` the container must be cleared.
-        # - If initialization fails the container will not have the respective
-        #   key.
-        if transition.new_state is None and key in container:
-            del container[key]
-
-
 def subdispatch_to_paymenttask(
     chain_state: ChainState,
     state_change: StateChange,
@@ -169,14 +128,12 @@ def subdispatch_to_paymenttask(
 ) -> TransitionResult[ChainState]:
     secrethashes_to_task = chain_state.payment_mapping.secrethashes_to_task
 
-    transition = handle_paymenttask(
-        secrethashes_to_task.get(secrethash),
+    return subdispatch(
+        handle_paymenttask,
+        [(secrethash, secrethashes_to_task)],
+        secrethashes_to_task[secrethash],
         state_change,
-        chain_state,
     )
-    environments = [(secrethash, secrethashes_to_task)]
-    update_environments(environments, transition)
-    return TransitionResult(chain_state, transition.events)
 
 
 def subdispatch_by_canonical_id(
@@ -217,7 +174,7 @@ def handle_paymenttask(
     transition = TransitionResult(None, list())
 
     if isinstance(state, InitiatorTask):
-        token_network_state = get_token_network_by_address(
+        _, token_network_state = get_networks(
             chain_state,
             state.token_network_identifier,
         )
@@ -232,7 +189,7 @@ def handle_paymenttask(
             )
 
     elif isinstance(state, MediatorTask):
-        token_network_state = get_token_network_by_address(
+        _, token_network_state = get_networks(
             chain_state,
             state.token_network_identifier,
         )
@@ -318,7 +275,7 @@ def subdispatch_initiatortask(
         ),
     ]
 
-    token_network_state = get_token_network_by_address(chain_state, token_network_identifier)
+    _, token_network_state = get_networks(chain_state, token_network_identifier)
     transition = initiator_task_state_machine(
         chain_state,
         state_change,
@@ -385,7 +342,7 @@ def subdispatch_mediatortask(
         ),
     ]
 
-    token_network_state = get_token_network_by_address(
+    _, token_network_state = get_networks(
         chain_state,
         token_network_identifier,
     )
@@ -611,7 +568,7 @@ def handle_chain_init(
 def handle_token_network_action(
     chain_state: ChainState, state_change: TokenNetworkStateChange
 ) -> TransitionResult[ChainState]:
-    token_network_state = get_token_network_by_address(
+    _, token_network_state = get_networks(
         chain_state, state_change.token_network_identifier
     )
 
