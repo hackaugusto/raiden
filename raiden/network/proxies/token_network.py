@@ -6,20 +6,24 @@ from eth_utils import (
     is_binary_address,
     to_canonical_address,
     to_checksum_address,
+    to_hex,
     to_normalized_address,
 )
 from gevent.event import AsyncResult
 from gevent.lock import RLock, Semaphore
+from web3.exceptions import BadFunctionCallOutput
 
 from raiden.constants import (
     EMPTY_HASH,
     EMPTY_MERKLE_ROOT,
     EMPTY_SIGNATURE,
     GENESIS_BLOCK_NUMBER,
+    NULL_ADDRESS_BYTES,
     UINT256_MAX,
     UNLOCK_TX_GAS_LIMIT,
 )
 from raiden.exceptions import (
+    InvalidChannelID,
     ChannelOutdatedError,
     DepositMismatch,
     DuplicatedChannelError,
@@ -57,7 +61,9 @@ from raiden.utils.typing import (
     MerkleTreeLeaves,
     NamedTuple,
     Nonce,
+    NoReturn,
     Signature,
+    T_BlockHash,
     T_ChannelID,
     T_ChannelState,
     TokenAmount,
@@ -79,6 +85,37 @@ from raiden_contracts.constants import (
 from raiden_contracts.contract_manager import ContractManager
 
 log = structlog.get_logger(__name__)  # pylint: disable=invalid-name
+
+
+def raise_on_call_returned_empty(given_block_identifier: BlockSpecification) -> NoReturn:
+    """Format a message and raise RaidenUnrecoverableError."""
+    # We know that the given address has code because this is checked
+    # in the constructor
+    if isinstance(given_block_identifier, T_BlockHash):
+        given_block_identifier = to_hex(given_block_identifier)
+
+    msg = (
+        f'Either the given address is for a different smart contract, '
+        f'or the was not deployed at the block '
+        f'{given_block_identifier}. Either way this call should never '
+        f'happened.'
+    )
+    raise RaidenUnrecoverableError(msg)
+
+
+def raise_if_invalid_address_pair(address1: Address, address2: Address) -> None:
+    if NULL_ADDRESS_BYTES in (address1, address2):
+        raise InvalidAddress(
+            "The null address is not allowed as a channel participant."
+        )
+
+    if address1 == address2:
+        raise SamePeerAddress(
+            "Using the same addresss for both participants is forbiden."
+        )
+
+    if not (is_binary_address(address1) and is_binary_address(address2)):
+        raise InvalidAddress("Addresses must be in binary")
 
 
 class ChannelData(NamedTuple):
@@ -150,17 +187,6 @@ class TokenNetwork:
         # setTotalDeposit calls.
         self.deposit_lock = Semaphore()
 
-    def _call_and_check_result(
-        self, block_identifier: BlockSpecification, function_name: str, *args, **kwargs
-    ):
-        fn = getattr(self.proxy.contract.functions, function_name)
-        call_result = fn(*args, **kwargs).call(block_identifier=block_identifier)
-
-        if call_result == b"":
-            raise RuntimeError(f"Call to '{function_name}' returned nothing")
-
-        return call_result
-
     def token_address(self) -> Address:
         """ Return the token of this manager. """
         return to_canonical_address(self.proxy.contract.functions.token().call())
@@ -168,8 +194,7 @@ class TokenNetwork:
     def _new_channel_preconditions(
         self, partner: Address, settle_timeout: int, block_identifier: BlockSpecification
     ):
-        if not is_binary_address(partner):
-            raise InvalidAddress("Expected binary address format for channel partner")
+        raise_if_invalid_address_pair(self.node_address, partner)
 
         invalid_timeout = (
             settle_timeout < self.settlement_timeout_min()
@@ -181,9 +206,6 @@ class TokenNetwork:
                     self.settlement_timeout_min(), self.settlement_timeout_max(), settle_timeout
                 )
             )
-
-        if self.node_address == partner:
-            raise SamePeerAddress("The other peer must not have the same address as the client.")
 
         if not self.client.can_query_state_for_block(block_identifier):
             raise NoStateForBlockIdentifier(
@@ -289,6 +311,21 @@ class TokenNetwork:
     def get_channel_identifier(
         self, participant1: Address, participant2: Address, block_identifier: BlockSpecification
     ) -> ChannelID:
+        """Return the channel identifier for the opened channel among
+        `(participant1, participant2)`.
+
+        Raises:
+            RaidenRecoverableError: If there is not open channel among
+                `(participant1, participant2)`. Note this is the case even if
+                there is a channel is a settle state.
+            BadFunctionCallOutput: If the `block_identifier` points to a block
+                prior to the deployment of the TokenNetwork.
+            SamePeerAddress: If an both addresses are equal.
+            InvalidAddress: If either of the address is an invalid type or the
+                null address.
+        """
+        raise_if_invalid_address_pair(participant1, participant2)
+
         channel_identifier = self.proxy.contract.functions.getChannelIdentifier(
             participant=to_checksum_address(participant1),
             partner=to_checksum_address(participant2),
@@ -297,8 +334,9 @@ class TokenNetwork:
         if channel_identifier == 0:
             msg = (
                 f"getChannelIdentifier returned 0, meaning "
-                f"no channel currently exists between {pex(participant1)} and "
-                f"{pex(participant2)}"
+                f"no channel currently exists between "
+                f"{to_checksum_address(participant1)} and "
+                f"{to_checksum_address(participant2)}"
             )
             raise RaidenRecoverableError(msg)
 
@@ -334,14 +372,14 @@ class TokenNetwork:
         block_identifier: BlockSpecification,
     ) -> ParticipantDetails:
         """ Returns a dictionary with the channel participant information. """
+        raise_if_invalid_address_pair(participant, partner)
 
-        data = self._call_and_check_result(
-            block_identifier,
-            "getChannelParticipantInfo",
+        data = self.proxy.contract.functions.getChannelParticipantInfo(
             channel_identifier=channel_identifier,
             participant=to_checksum_address(participant),
             partner=to_checksum_address(partner),
-        )
+        ).call(block_identifier=block_identifier)
+
         return ParticipantDetails(
             address=participant,
             deposit=data[ParticipantInfoIndex.DEPOSIT],
@@ -366,6 +404,8 @@ class TokenNetwork:
         is a currently open channel and uses that identifier.
 
         """
+        raise_if_invalid_address_pair(participant1, participant2)
+
         if channel_identifier is None:
             channel_identifier = self.get_channel_identifier(
                 participant1=participant1,
@@ -373,17 +413,17 @@ class TokenNetwork:
                 block_identifier=block_identifier,
             )
         elif not isinstance(channel_identifier, T_ChannelID):
-            raise ValueError("channel_identifier must be of type T_ChannelID")
+            raise InvalidChannelID("channel_identifier must be of type T_ChannelID")
         elif channel_identifier <= 0 or channel_identifier > UINT256_MAX:
-            raise ValueError("channel_identifier must be larger then 0 and smaller then uint256")
+            raise InvalidChannelID(
+                "channel_identifier must be larger then 0 and smaller then uint256"
+            )
 
-        channel_data = self._call_and_check_result(
-            block_identifier,
-            "getChannelInfo",
+        channel_data = self.proxy.contract.functions.getChannelInfo(
             channel_identifier=channel_identifier,
             participant1=to_checksum_address(participant1),
             participant2=to_checksum_address(participant2),
-        )
+        ).call(block_identifier=block_identifier)
 
         return ChannelData(
             channel_identifier=channel_identifier,
@@ -417,9 +457,11 @@ class TokenNetwork:
                 block_identifier=block_identifier,
             )
         elif not isinstance(channel_identifier, T_ChannelID):
-            raise ValueError("channel_identifier must be of type T_ChannelID")
+            raise InvalidChannelID("channel_identifier must be of type T_ChannelID")
         elif channel_identifier <= 0 or channel_identifier > UINT256_MAX:
-            raise ValueError("channel_identifier must be larger then 0 and smaller then uint256")
+            raise InvalidChannelID(
+                "channel_identifier must be larger then 0 and smaller then uint256"
+            )
 
         our_data = self._detail_participant(
             channel_identifier=channel_identifier,
@@ -449,7 +491,7 @@ class TokenNetwork:
             For now one of the participants has to be the node_address
         """
         if self.node_address not in (participant1, participant2):
-            raise ValueError("One participant must be the node address")
+            raise InvalidAddress("One participant must be the node address")
 
         if self.node_address == participant2:
             participant1, participant2 = participant2, participant1
@@ -914,6 +956,8 @@ class TokenNetwork:
             # If `given_block_identifier` has been pruned the checks cannot be
             # performed.
             pass
+        except BadFunctionCallOutput:
+            raise_on_call_returned_empty(given_block_identifier)
         else:
             onchain_channel_identifier = channel_onchain_detail.channel_identifier
             if onchain_channel_identifier != channel_identifier:
@@ -1133,6 +1177,8 @@ class TokenNetwork:
             # If `given_block_identifier` has been pruned the checks cannot be
             # performed.
             pass
+        except BadFunctionCallOutput:
+            raise_on_call_returned_empty(given_block_identifier)
         else:
             # The latest channel is of no importance for the update transfer
             # precondition checks, the only constraint that has to be satisfied
@@ -1388,6 +1434,8 @@ class TokenNetwork:
             # If `given_block_identifier` has been pruned the checks cannot be
             # performed.
             pass
+        except BadFunctionCallOutput:
+            raise_on_call_returned_empty(given_block_identifier)
         else:
             if channel_onchain_detail.state != ChannelState.SETTLED:
                 msg = (
