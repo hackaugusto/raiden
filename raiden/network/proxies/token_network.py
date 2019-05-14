@@ -23,11 +23,11 @@ from raiden.constants import (
     UNLOCK_TX_GAS_LIMIT,
 )
 from raiden.exceptions import (
-    InvalidChannelID,
     ChannelOutdatedError,
     DepositMismatch,
     DuplicatedChannelError,
     InvalidAddress,
+    InvalidChannelID,
     InvalidSettleTimeout,
     NoStateForBlockIdentifier,
     RaidenRecoverableError,
@@ -95,24 +95,20 @@ def raise_on_call_returned_empty(given_block_identifier: BlockSpecification) -> 
         given_block_identifier = to_hex(given_block_identifier)
 
     msg = (
-        f'Either the given address is for a different smart contract, '
-        f'or the was not deployed at the block '
-        f'{given_block_identifier}. Either way this call should never '
-        f'happened.'
+        f"Either the given address is for a different smart contract, "
+        f"or the contract was not yet deployed at the block "
+        f"{given_block_identifier}. Either way this call should never "
+        f"happened."
     )
     raise RaidenUnrecoverableError(msg)
 
 
 def raise_if_invalid_address_pair(address1: Address, address2: Address) -> None:
     if NULL_ADDRESS_BYTES in (address1, address2):
-        raise InvalidAddress(
-            "The null address is not allowed as a channel participant."
-        )
+        raise InvalidAddress("The null address is not allowed as a channel participant.")
 
     if address1 == address2:
-        raise SamePeerAddress(
-            "Using the same addresss for both participants is forbiden."
-        )
+        raise SamePeerAddress("Using the same addresss for both participants is forbiden.")
 
     if not (is_binary_address(address1) and is_binary_address(address2)):
         raise InvalidAddress("Addresses must be in binary")
