@@ -367,21 +367,21 @@ class TokenNetwork:
     def _detail_participant(
         self,
         channel_identifier: ChannelID,
-        participant: Address,
+        detail_for: Address,
         partner: Address,
         block_identifier: BlockSpecification,
     ) -> ParticipantDetails:
         """ Returns a dictionary with the channel participant information. """
-        raise_if_invalid_address_pair(participant, partner)
+        raise_if_invalid_address_pair(detail_for, partner)
 
         data = self.proxy.contract.functions.getChannelParticipantInfo(
             channel_identifier=channel_identifier,
-            participant=to_checksum_address(participant),
+            participant=to_checksum_address(detail_for),
             partner=to_checksum_address(partner),
         ).call(block_identifier=block_identifier)
 
         return ParticipantDetails(
-            address=participant,
+            address=detail_for,
             deposit=data[ParticipantInfoIndex.DEPOSIT],
             withdrawn=data[ParticipantInfoIndex.WITHDRAWN],
             is_closer=data[ParticipantInfoIndex.IS_CLOSER],
@@ -465,13 +465,13 @@ class TokenNetwork:
 
         our_data = self._detail_participant(
             channel_identifier=channel_identifier,
-            participant=participant1,
+            detail_for=participant1,
             partner=participant2,
             block_identifier=block_identifier,
         )
         partner_data = self._detail_participant(
             channel_identifier=channel_identifier,
-            participant=participant2,
+            detail_for=participant2,
             partner=participant1,
             block_identifier=block_identifier,
         )
@@ -603,7 +603,7 @@ class TokenNetwork:
 
         deposit = self._detail_participant(
             channel_identifier=channel_identifier,
-            participant=participant1,
+            detail_for=participant1,
             partner=participant2,
             block_identifier=block_identifier,
         ).deposit
@@ -711,7 +711,7 @@ class TokenNetwork:
         with self.channel_operations_lock[partner], self.deposit_lock:
             previous_total_deposit = self._detail_participant(
                 channel_identifier=channel_identifier,
-                participant=self.node_address,
+                detail_for=self.node_address,
                 partner=partner,
                 block_identifier=given_block_identifier,
             ).deposit
@@ -830,7 +830,7 @@ class TokenNetwork:
         msg = ""
         latest_deposit = self._detail_participant(
             channel_identifier=channel_identifier,
-            participant=self.node_address,
+            detail_for=self.node_address,
             partner=partner,
             block_identifier=block_identifier,
         ).deposit
@@ -1032,7 +1032,7 @@ class TokenNetwork:
 
                     partner_details = self._detail_participant(
                         channel_identifier=channel_identifier,
-                        participant=partner,
+                        detail_for=partner,
                         partner=self.node_address,
                         block_identifier=mining_block,
                     )
@@ -1168,7 +1168,7 @@ class TokenNetwork:
             )
             closer_details = self._detail_participant(
                 channel_identifier=channel_identifier,
-                participant=partner,
+                detail_for=partner,
                 partner=self.node_address,
                 block_identifier=given_block_identifier,
             )
@@ -1308,7 +1308,7 @@ class TokenNetwork:
 
                 partner_details = self._detail_participant(
                     channel_identifier=channel_identifier,
-                    participant=partner,
+                    detail_for=partner,
                     partner=self.node_address,
                     block_identifier=mining_block,
                 )
@@ -1379,7 +1379,7 @@ class TokenNetwork:
             # `failed_at_blockhash`
             partner_details = self._detail_participant(
                 channel_identifier=channel_identifier,
-                participant=partner,
+                detail_for=partner,
                 partner=self.node_address,
                 block_identifier=failed_at_blockhash,
             )
@@ -1426,7 +1426,7 @@ class TokenNetwork:
             )
             unlock_end_details = self._detail_participant(
                 channel_identifier=channel_identifier,
-                participant=participant,
+                detail_for=participant,
                 partner=partner,
                 block_identifier=given_block_identifier,
             )
@@ -1450,7 +1450,8 @@ class TokenNetwork:
                 msg = (
                     f"The provided merkle tree ({to_hex(local_merkleroot)}) "
                     f"does correspond to the on-chain locksroot "
-                    f"{to_hex(unlock_end_details.locksroot)}."
+                    f"{to_hex(unlock_end_details.locksroot)} for partner "
+                    f"{to_checksum_address(partner)}."
                 )
                 raise RaidenUnrecoverableError(msg)
 
@@ -1498,7 +1499,7 @@ class TokenNetwork:
                 # Query the current state to check for transaction races
                 unlock_end_details = self._detail_participant(
                     channel_identifier=channel_identifier,
-                    participant=partner,
+                    detail_for=partner,
                     partner=self.node_address,
                     block_identifier=given_block_identifier,
                 )
@@ -1531,7 +1532,7 @@ class TokenNetwork:
             )
             unlock_end_details = self._detail_participant(
                 channel_identifier=channel_identifier,
-                participant=partner,
+                detail_for=partner,
                 partner=self.node_address,
                 block_identifier=failed_at_blockhash,
             )
