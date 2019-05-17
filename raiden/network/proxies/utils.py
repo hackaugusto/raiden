@@ -103,6 +103,7 @@ def log_transaction(description, details: Dict[Any, Any]) -> Generator:
         yield
     except:  # noqa
         log.critical('Failed', description=description, **details)
+        log.exception('Failed because of')
         raise
     else:
         log.debug('Exited', description=description, **details)
