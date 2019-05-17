@@ -3,11 +3,11 @@ from eth_utils import is_binary_address, to_checksum_address, to_normalized_addr
 
 from raiden.constants import NULL_ADDRESS
 from raiden.exceptions import TransactionThrew, UnknownAddress
-from raiden.network.proxies.utils import compare_contract_versions
+from raiden.network.proxies.utils import compare_contract_versions, log_transaction
 from raiden.network.rpc.client import check_address_has_code
 from raiden.network.rpc.smartcontract_proxy import ContractProxy
 from raiden.network.rpc.transactions import check_transaction_threw
-from raiden.utils import pex, safe_gas_limit
+from raiden.utils import safe_gas_limit
 from raiden_contracts.constants import (
     CONTRACT_ENDPOINT_REGISTRY,
     GAS_REQUIRED_FOR_ENDPOINT_REGISTER,
@@ -53,31 +53,31 @@ class Discovery:
             raise ValueError("node_address doesnt match this node's address")
 
         log_details = {
-            "node": pex(self.node_address),
-            "node_address": pex(node_address),
+            "node": to_checksum_address(self.node_address),
+            "contract": to_checksum_address(self.address),
+            "node_address": to_checksum_address(node_address),
             "endpoint": endpoint,
         }
-        log.debug("registerEndpoint called", **log_details)
+        with log_transaction(log, "register_endpoint", log_details):
+            gas_limit = safe_gas_limit(GAS_REQUIRED_FOR_ENDPOINT_REGISTER)
+            log_details["gas_limit"] = gas_limit
 
-        transaction_hash = self.proxy.transact(
-            "registerEndpoint", safe_gas_limit(GAS_REQUIRED_FOR_ENDPOINT_REGISTER), endpoint
-        )
+            transaction_hash = self.proxy.transact("registerEndpoint", gas_limit, endpoint)
 
-        self.client.poll(transaction_hash)
+            self.client.poll(transaction_hash)
 
-        receipt_or_none = check_transaction_threw(self.client, transaction_hash)
-        if receipt_or_none:
-            log.critical("registerEndpoint failed", **log_details)
-            raise TransactionThrew("Register Endpoint", receipt_or_none)
-
-        log.debug("registerEndpoint successful", **log_details)
+            receipt_or_none = check_transaction_threw(self.client, transaction_hash)
+            if receipt_or_none:
+                raise TransactionThrew("Register Endpoint", receipt_or_none)
 
     def endpoint_by_address(self, node_address_bin):
         node_address_hex = to_checksum_address(node_address_bin)
-        endpoint = self.proxy.contract.functions.findEndpointByAddress(node_address_hex).call()
+        endpoint: str = self.proxy.contract.functions.findEndpointByAddress(
+            node_address_hex
+        ).call()
 
         if endpoint == "":
-            raise UnknownAddress("Unknown address {}".format(pex(node_address_bin)))
+            raise UnknownAddress(f"Unknown address {node_address_hex}")
 
         return endpoint
 
