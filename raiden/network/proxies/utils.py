@@ -1,16 +1,21 @@
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+import structlog
 from eth_utils import to_normalized_address
 from web3.exceptions import BadFunctionCallOutput
 
 from raiden.exceptions import AddressWrongContract, ContractVersionMismatch
 from raiden.network.rpc.smartcontract_proxy import ContractProxy
 from raiden.transfer.identifiers import CanonicalIdentifier
-from raiden.utils.typing import Address, BlockSpecification, Locksroot, Tuple
+from raiden.utils.typing import Address, Any, BlockSpecification, Dict, Generator, Locksroot, Tuple
 
 if TYPE_CHECKING:
     # pylint: disable=unused-import
     from raiden.network.blockchain_service import BlockChainService
+
+
+log = structlog.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 def compare_contract_versions(
@@ -89,3 +94,15 @@ def get_onchain_locksroots(
     partner_locksroot = partner_details.locksroot
 
     return our_locksroot, partner_locksroot
+
+
+@contextmanager
+def log_transaction(description, details: Dict[Any, Any]) -> Generator:
+    try:
+        log.debug('Entered', description=description, **details)
+        yield
+    except:  # noqa
+        log.critical('Failed', description=description, **details)
+        raise
+    else:
+        log.debug('Exited', description=description, **details)
