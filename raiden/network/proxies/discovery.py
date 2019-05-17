@@ -3,7 +3,7 @@ from eth_utils import is_binary_address, to_checksum_address, to_normalized_addr
 
 from raiden.constants import NULL_ADDRESS
 from raiden.exceptions import TransactionThrew, UnknownAddress
-from raiden.network.proxies.utils import compare_contract_versions
+from raiden.network.proxies.utils import compare_contract_versions, log_transaction
 from raiden.network.rpc.client import check_address_has_code
 from raiden.network.rpc.smartcontract_proxy import ContractProxy
 from raiden.network.rpc.transactions import check_transaction_threw
@@ -57,20 +57,16 @@ class Discovery:
             "node_address": pex(node_address),
             "endpoint": endpoint,
         }
-        log.debug("registerEndpoint called", **log_details)
+        with log_transaction('register_endpoint', log_details):
+            transaction_hash = self.proxy.transact(
+                "registerEndpoint", safe_gas_limit(GAS_REQUIRED_FOR_ENDPOINT_REGISTER), endpoint
+            )
 
-        transaction_hash = self.proxy.transact(
-            "registerEndpoint", safe_gas_limit(GAS_REQUIRED_FOR_ENDPOINT_REGISTER), endpoint
-        )
+            self.client.poll(transaction_hash)
 
-        self.client.poll(transaction_hash)
-
-        receipt_or_none = check_transaction_threw(self.client, transaction_hash)
-        if receipt_or_none:
-            log.critical("registerEndpoint failed", **log_details)
-            raise TransactionThrew("Register Endpoint", receipt_or_none)
-
-        log.debug("registerEndpoint successful", **log_details)
+            receipt_or_none = check_transaction_threw(self.client, transaction_hash)
+            if receipt_or_none:
+                raise TransactionThrew("Register Endpoint", receipt_or_none)
 
     def endpoint_by_address(self, node_address_bin):
         node_address_hex = to_checksum_address(node_address_bin)
