@@ -59,14 +59,16 @@ class Discovery:
             raise ValueError("node_address doesnt match this node's address")
 
         log_details = {
-            "node": pex(self.node_address),
-            "node_address": pex(node_address),
+            "node": to_checksum_address(self.node_address),
+            "contract": to_checksum_address(self.address),
+            "node_address": to_checksum_address(node_address),
             "endpoint": endpoint,
         }
-        with log_transaction('register_endpoint', log_details):
-            transaction_hash = self.proxy.transact(
-                "registerEndpoint", safe_gas_limit(GAS_REQUIRED_FOR_ENDPOINT_REGISTER), endpoint
-            )
+        with log_transaction(log, "register_endpoint", log_details):
+            gas_limit = safe_gas_limit(GAS_REQUIRED_FOR_ENDPOINT_REGISTER)
+            log_details["gas_limit"] = gas_limit
+
+            transaction_hash = self.proxy.transact("registerEndpoint", gas_limit, endpoint)
 
             self.client.poll(transaction_hash)
 
