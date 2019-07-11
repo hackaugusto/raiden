@@ -33,6 +33,7 @@ from raiden.utils.typing import (
     TokenAmount,
     Tuple,
     Type,
+    TypeVar,
 )
 from raiden.waiting import (
     wait_for_healthy,
@@ -44,6 +45,72 @@ from raiden.waiting import (
 log = structlog.get_logger(__name__)
 
 
+T = TypeVar("T")
+
+
+class WaitForManyPredicates(List[T]):
+    """Container that evaluates to true once all the inner values are true.
+
+    Note:
+
+        - A predicate may raise an exception to exit early.
+        - If no predicates are provided an empty list is returned.
+    """
+
+    _current: Optional[Callable[[], Optional[T]]]
+    _pending: List[Callable[[], Optional[T]]]
+    _results: List[T]
+
+    # This signature is designed to allow for an emty list of predicates, this
+    # makes composing easier
+    def __init__(self, *predicates: Callable[[], T]) -> None:
+        pending = list(predicates)
+
+        current = None
+        if pending:
+            current = pending.pop()
+
+        self._results = []
+        self._current = current
+        self._pending = pending
+
+    def __call__(self) -> List[T]:
+        while self._current is not None:
+            result = self._current()
+
+            # The current predicate is not satisfied, return None
+            if result is None:
+                return None
+
+            # The current predicate has been satisfied, save its result and
+            # clear it
+            if result:
+                self._results.append(result)
+                self._current = None
+
+            # Queue the next pending predicate
+            if self._pending:
+                self._current = self._pending.pop()
+
+        # All predicates have been satisfied, return their results
+        return self._results
+
+
+def wait_for_predicate(
+    predicate: Callable[[], Optional[T]], retry_timeout: float = DEFAULT_RETRY_TIMEOUT
+) -> T:
+    """Runs `predicate` every `retry_timeout` until it returns a value different to `None`."""
+
+    result = predicate()
+
+    # Do not sleep if it is not necessary
+    while result is None:
+        gevent.sleep(retry_timeout)
+        result = predicate()
+
+    return result
+
+
 def wait_for_alarm_start(
     raiden_apps: List[App], retry_timeout: float = DEFAULT_RETRY_TIMEOUT
 ) -> None:
@@ -53,7 +120,7 @@ def wait_for_alarm_start(
     while apps:
         app = apps[-1]
 
-        if app.raiden.alarm.known_block_number is None:
+        if not app.raiden.alarm.is_primed():
             gevent.sleep(retry_timeout)
         else:
             apps.pop()
