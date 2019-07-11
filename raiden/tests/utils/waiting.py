@@ -1,4 +1,4 @@
-from collections import defaultdict
+from collections import UserString, defaultdict
 
 import gevent
 import structlog
@@ -34,6 +34,7 @@ from raiden.utils.typing import (
     Tuple,
     Type,
     TypeVar,
+    Union,
 )
 from raiden.waiting import (
     wait_for_healthy,
@@ -45,55 +46,101 @@ from raiden.waiting import (
 log = structlog.get_logger(__name__)
 
 
+class WaitReason(UserString):
+    """Type to describe the reason for the waiting.
+
+    A runtime class instead of a static type is used because predicates can
+    return `str` as a valid result.
+    """
+
+    pass
+
+
 T = TypeVar("T")
+WaitReasonOrResult = Union[WaitReason, T]
 
 
 class WaitForManyPredicates(List[T]):
-    """Container that evaluates to true once all the inner values are true.
+    """Callable that returns the result of all inner predicates in order, or
+    the reason for the waiting.
 
     Note:
 
         - A predicate may raise an exception to exit early.
         - If no predicates are provided an empty list is returned.
+        - A predicate will not be checked again after the first time it is
+          satisfied.
     """
 
-    _current: Optional[Callable[[], Optional[T]]]
-    _pending: List[Callable[[], Optional[T]]]
+    _pending: List[int]
+    _predicates: List[Callable[[], WaitReasonOrResult[T]]]
     _results: List[T]
 
     # This signature is designed to allow for an emty list of predicates, this
     # makes composing easier
-    def __init__(self, *predicates: Callable[[], T]) -> None:
-        pending = list(predicates)
+    def __init__(self, *predicates: Callable[[], WaitReasonOrResult[T]]) -> None:
+        predicates = list(predicates)
+        pending = list(range(len(predicates)))
+        results = [None for _ in predicates]
 
-        current = None
-        if pending:
-            current = pending.pop()
-
-        self._results = []
-        self._current = current
+        self._results = results
         self._pending = pending
+        self._predicates = predicates
 
-    def __call__(self) -> List[T]:
-        while self._current is not None:
-            result = self._current()
+    def __call__(self) -> WaitReasonOrResult[List[T]]:
+        waiting_reasons: List[WaitReason] = []
 
-            # The current predicate is not satisfied, return None
-            if result is None:
-                return None
+        while self._pending:
+            for pos, pending_predicate in enumerate(list(self._pending)):
+                predicate = self._predicates[pending_predicate]
 
-            # The current predicate has been satisfied, save its result and
-            # clear it
-            if result:
-                self._results.append(result)
-                self._current = None
+                result = predicate()
 
-            # Queue the next pending predicate
-            if self._pending:
-                self._current = self._pending.pop()
+                # Note that None will satisfy the predicate too
+                if isinstance(result, WaitReason):
+                    waiting_reasons.append(result)
+                else:
+                    # Predicate has been satisfied, save its result in the
+                    # correct order, then remove it from the pending list.
+                    self._results[pending_predicate] = result
+                    del self._pending[pos]
 
-        # All predicates have been satisfied, return their results
+        # If any of the predicates is not resolved then WaitForManyPredicates
+        # is not resolved.
+        if waiting_reasons:
+            return WaitReason("; ".join(waiting_reasons))
+
         return self._results
+
+
+def wait_for_predicate_with_logging(
+    predicate: Callable[[], WaitReasonOrResult[T]], retry_timeout: float = DEFAULT_RETRY_TIMEOUT
+) -> T:
+    result = predicate()
+
+    # Do not sleep if it is not necessary
+    while isinstance(result, WaitReason):
+        log.debug(result)
+        gevent.sleep(retry_timeout)
+        result = predicate()
+
+    return result
+
+
+def constant_reason_for_predicate_failure(
+    predicate: Callable[[], Optional[T]], reason: WaitReason
+) -> WaitReasonOrResult[T]:
+    """Runs `predicate` every `retry_timeout` until it returns a value different to `None`."""
+
+    def wait_reason():
+        result = predicate()
+
+        if result is None:
+            return reason
+
+        return result
+
+    return wait_reason
 
 
 def wait_for_predicate(
@@ -101,14 +148,10 @@ def wait_for_predicate(
 ) -> T:
     """Runs `predicate` every `retry_timeout` until it returns a value different to `None`."""
 
-    result = predicate()
-
-    # Do not sleep if it is not necessary
-    while result is None:
-        gevent.sleep(retry_timeout)
-        result = predicate()
-
-    return result
+    reason_is_predicate_name = f"Waiting: {predicate.__name__}"
+    return wait_for_predicate_with_logging(
+        constant_reason_for_predicate_failure(predicate, reason_is_predicate_name), retry_timeout
+    )
 
 
 def wait_for_alarm_start(
