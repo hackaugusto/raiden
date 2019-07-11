@@ -115,15 +115,8 @@ def wait_for_alarm_start(
     raiden_apps: List[App], retry_timeout: float = DEFAULT_RETRY_TIMEOUT
 ) -> None:
     """Wait until all Alarm tasks start & set up the last_block"""
-    apps = list(raiden_apps)
-
-    while apps:
-        app = apps[-1]
-
-        if not app.raiden.alarm.is_primed():
-            gevent.sleep(retry_timeout)
-        else:
-            apps.pop()
+    alarm_ready = [app.raiden.alarm.is_primed for app in raiden_apps]
+    wait_for_predicate(WaitForManyPredicates(*alarm_ready), retry_timeout)
 
 
 def wait_for_usable_channel(
