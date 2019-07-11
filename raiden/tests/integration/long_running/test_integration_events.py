@@ -19,9 +19,10 @@ from raiden.constants import GENESIS_BLOCK_NUMBER
 from raiden.network.blockchain_service import BlockChainService
 from raiden.settings import DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS
 from raiden.tests.utils.detect_failure import raise_on_failure
-from raiden.tests.utils.events import must_have_event, search_for_item, wait_for_state_change
+from raiden.tests.utils.events import must_have_event, search_for_item
 from raiden.tests.utils.network import CHAIN
 from raiden.tests.utils.transfer import assert_synced_channel_state, get_channelstate
+from raiden.tests.utils.waiting import wait_for_state_change
 from raiden.transfer import views
 from raiden.transfer.events import ContractSendChannelClose
 from raiden.transfer.mediated_transfer.events import SendLockedTransfer

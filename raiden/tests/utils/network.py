@@ -7,17 +7,16 @@ import gevent
 import structlog
 from eth_utils import to_checksum_address
 
-from raiden import waiting
 from raiden.app import App
 from raiden.constants import RoutingMode
 from raiden.network.blockchain_service import BlockChainService
 from raiden.network.rpc.client import JSONRPCClient
 from raiden.network.transport import MatrixTransport
 from raiden.raiden_event_handler import RaidenEventHandler
-from raiden.settings import DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS, DEFAULT_RETRY_TIMEOUT
+from raiden.settings import DEFAULT_NUMBER_OF_BLOCK_CONFIRMATIONS
 from raiden.tests.utils.app import database_from_privatekey
 from raiden.tests.utils.factories import UNIT_CHAIN_ID
-from raiden.tests.utils.protocol import HoldRaidenEventHandler, WaitForMessage
+from raiden.tests.utils.waiting import HoldRaidenEventHandler, WaitForMessage
 from raiden.transfer.identifiers import CanonicalIdentifier
 from raiden.transfer.mediated_transfer.mediation_fee import FeeScheduleState
 from raiden.transfer.views import state_from_raiden
@@ -29,13 +28,11 @@ from raiden.utils.typing import (
     Iterable,
     List,
     Optional,
-    PaymentNetworkAddress,
     TokenAddress,
     TokenAmount,
     TokenNetworkAddress,
     Tuple,
 )
-from raiden.waiting import wait_for_payment_network
 
 AppChannels = Iterable[Tuple[App, App]]
 
@@ -458,90 +455,3 @@ def jsonrpc_services(
         deploy_service=deploy_service,
         blockchain_services=blockchain_services,
     )
-
-
-def wait_for_alarm_start(
-    raiden_apps: List[App], retry_timeout: float = DEFAULT_RETRY_TIMEOUT
-) -> None:
-    """Wait until all Alarm tasks start & set up the last_block"""
-    apps = list(raiden_apps)
-
-    while apps:
-        app = apps[-1]
-
-        if app.raiden.alarm.known_block_number is None:
-            gevent.sleep(retry_timeout)
-        else:
-            apps.pop()
-
-
-def wait_for_usable_channel(
-    app0: App,
-    app1: App,
-    registry_address: PaymentNetworkAddress,
-    token_address: TokenAddress,
-    our_deposit: TokenAmount,
-    partner_deposit: TokenAmount,
-    retry_timeout: float = DEFAULT_RETRY_TIMEOUT,
-) -> None:
-    """ Wait until the channel from app0 to app1 is usable.
-
-    The channel and the deposits are registered, and the partner network state
-    is reachable.
-    """
-    waiting.wait_for_newchannel(
-        app0.raiden, registry_address, token_address, app1.raiden.address, retry_timeout
-    )
-
-    waiting.wait_for_participant_newbalance(
-        app0.raiden,
-        registry_address,
-        token_address,
-        app1.raiden.address,
-        app0.raiden.address,
-        our_deposit,
-        retry_timeout,
-    )
-
-    waiting.wait_for_participant_newbalance(
-        app0.raiden,
-        registry_address,
-        token_address,
-        app1.raiden.address,
-        app1.raiden.address,
-        partner_deposit,
-        retry_timeout,
-    )
-
-    waiting.wait_for_healthy(app0.raiden, app1.raiden.address, retry_timeout)
-
-
-def wait_for_token_networks(
-    raiden_apps: List[App],
-    token_network_registry_address: PaymentNetworkAddress,
-    token_addresses: List[TokenAddress],
-    retry_timeout: float = DEFAULT_RETRY_TIMEOUT,
-) -> None:
-    for token_address in token_addresses:
-        for app in raiden_apps:
-            wait_for_payment_network(
-                app.raiden, token_network_registry_address, token_address, retry_timeout
-            )
-
-
-def wait_for_channels(
-    app_channels: AppChannels,
-    registry_address: PaymentNetworkAddress,
-    token_addresses: List[TokenAddress],
-    deposit: TokenAmount,
-    retry_timeout: float = DEFAULT_RETRY_TIMEOUT,
-) -> None:
-    """ Wait until all channels are usable from both directions. """
-    for app0, app1 in app_channels:
-        for token_address in token_addresses:
-            wait_for_usable_channel(
-                app0, app1, registry_address, token_address, deposit, deposit, retry_timeout
-            )
-            wait_for_usable_channel(
-                app1, app0, registry_address, token_address, deposit, deposit, retry_timeout
-            )

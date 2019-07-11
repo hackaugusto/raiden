@@ -13,7 +13,6 @@ from raiden.tests.utils.detect_failure import raise_on_failure
 from raiden.tests.utils.events import raiden_events_search_for_item
 from raiden.tests.utils.factories import make_secret
 from raiden.tests.utils.network import CHAIN
-from raiden.tests.utils.protocol import HoldRaidenEventHandler
 from raiden.tests.utils.transfer import assert_synced_channel_state
 from raiden.transfer import views
 from raiden.transfer.events import EventPaymentSentSuccess
@@ -177,8 +176,6 @@ def run_test_payment_statuses_are_restored(raiden_network, token_addresses, netw
         chain_state, payment_network_address, token_address
     )
 
-    raiden_event_handler = RaidenEventHandler()
-    app0.event_handler = HoldRaidenEventHandler(raiden_event_handler)
     app0.event_handler.hold(SendSecretReveal, {})
 
     # make a few transfers from app0 to app1
