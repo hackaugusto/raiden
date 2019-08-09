@@ -11,13 +11,20 @@ The ignored state changes will still be applied, but they will just not be print
 """
 from contextlib import closing
 from itertools import chain
+from pathlib import Path
 
 import click
-from eth_utils import encode_hex, is_checksum_address, to_canonical_address
+from eth_utils import decode_hex, encode_hex, to_canonical_address
 
 from raiden.storage.serialization import JSONSerializer
-from raiden.storage.sqlite import RANGE_ALL_STATE_CHANGES, SerializedSQLiteStorage
-from raiden.storage.wal import WriteAheadLog
+from raiden.storage.sqlite import (
+    HIGH_STATECHANGE_ULID,
+    RANGE_ALL_STATE_CHANGES,
+    SerializedSQLiteStorage,
+    StateChangeID,
+)
+from raiden.storage.ulid import ULID
+from raiden.storage.wal import WriteAheadLog, restore_to_state_change
 from raiden.transfer import node, views
 from raiden.transfer.architecture import Event, StateChange, StateManager
 from raiden.utils.typing import (
@@ -112,20 +119,48 @@ def replay_wal(
         print_events(chain.from_iterable(events))
 
 
-@click.command(help=__doc__)
-@click.argument("db-file", type=click.Path(exists=True))
-@click.argument("token-network-address")
-@click.argument("partner-address")
-def main(db_file, token_network_address, partner_address):
-    assert is_checksum_address(token_network_address), "token_network_address must be provided"
-    assert is_checksum_address(partner_address), "partner_address must be provided"
+def restore_by_state_change(
+    storage: SerializedSQLiteStorage, state_change_identifier: StateChangeID
+) -> None:
+    wal = restore_to_state_change(
+        transition_function=node.state_transition,
+        storage=storage,
+        state_change_identifier=state_change_identifier,
+    )
 
-    with closing(SerializedSQLiteStorage(db_file, JSONSerializer())) as storage:
-        replay_wal(
-            storage=storage,
-            token_network_address=token_network_address,
-            partner_address=partner_address,
-        )
+    if wal:
+        breakpoint()
+    else:
+        print(f"Couldn't restore to {state_change_identifier}")
+
+
+def hexulid(hexulid: str) -> ULID:
+    return ULID(decode_hex(hexulid))
+
+
+def storage_from_path(db_file: str) -> Path:
+    file = Path(db_file)
+    assert file.exists
+    return file
+
+
+def main():
+    import argparse
+
+    main_parser = argparse.ArgumentParser()
+    main_parser.add_argument("database_path", type=storage_from_path)
+    commands = main_parser.add_subparsers(dest="command", required=True)
+
+    replay_parser = commands.add_parser("replay")
+    replay_group = replay_parser.add_mutually_exclusive_group()
+    replay_group.add_argument("--state-change-ulid", type=hexulid, default=HIGH_STATECHANGE_ULID)
+
+    args = main_parser.parse_args()
+
+    with closing(SerializedSQLiteStorage(args.database_path, JSONSerializer())) as storage:
+        if args.command == "replay":
+            if "state_change_ulid" in args:
+                restore_by_state_change(storage, args.state_change_ulid)
 
 
 if __name__ == "__main__":
