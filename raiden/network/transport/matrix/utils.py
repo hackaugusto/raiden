@@ -379,7 +379,7 @@ class UserAddressManager:
 
     def _fetch_user_presence(self, user_id: str) -> UserPresence:
         try:
-            presence = UserPresence(self._client.get_user_presence(user_id))
+            server_presence = self._client.get_user_presence(user_id)
         except MatrixRequestError:
             # The following exception will be raised if the local user and the
             # target user do not have a shared room:
@@ -387,6 +387,9 @@ class UserAddressManager:
             #   MatrixRequestError: 403:
             #   {"errcode":"M_FORBIDDEN","error":"You are not allowed to see their presence."}
             presence = UserPresence.UNKNOWN
+        else:
+            presence = UserPresence(server_presence)
+
         self._userid_to_presence[user_id] = presence
         return self._userid_to_presence[user_id]
 
