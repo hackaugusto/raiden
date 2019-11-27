@@ -69,7 +69,7 @@ class NodeRunner:
                     "0x0d5EE18c1C09A19D6A3A23D1c674683709Cd543e"
                 ),
                 "transport": "matrix",
-                "environment_type": Environment.PRODUCTION,
+                "environment_type": Environment.DEVELOPMENT,
                 "network_id": NETWORKNAME_TO_ID["goerli"],
                 "routing_mode": RoutingMode.PFS.value,
                 "enable_monitoring": True,
