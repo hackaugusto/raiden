@@ -43,6 +43,44 @@ class NodeRunner:
         self._ctx = ctx
         self._raiden_api = None
 
+        from raiden.constants import Environment, RoutingMode
+        from raiden_contracts.constants import NETWORKNAME_TO_ID
+        from eth_utils import to_canonical_address
+
+        self._options.update(
+            {
+                # defaults
+                "tokennetwork_registry_contract_address": to_canonical_address(
+                    "0x11Fa4cd3Ce32857f982A70D9719963361eD8B250"
+                ),
+                "secret_registry_contract_address": to_canonical_address(
+                    "0xCa684e4770615C72d6354557a2084E84bc19024C"
+                ),
+                "service_registry_contract_address": to_canonical_address(
+                    "0x2EA4C724aBf9bC05C76D91438CC23DCDdeC5d14e"
+                ),
+                "one_to_n_contract_address": to_canonical_address(
+                    "0x7BaFf37e12f95218Ed689465bAa0Ee2FBb6956F9"
+                ),
+                "user_deposit_contract_address": to_canonical_address(
+                    "0xd60ae4834dC2836B41016129Ac8a7C8415045bc9"
+                ),
+                "monitoring_service_contract_address": to_canonical_address(
+                    "0x0d5EE18c1C09A19D6A3A23D1c674683709Cd543e"
+                ),
+                "transport": "matrix",
+                "environment_type": Environment.PRODUCTION,
+                "network_id": NETWORKNAME_TO_ID["goerli"],
+                "routing_mode": RoutingMode.PFS.value,
+                "enable_monitoring": True,
+                "pathfinding_service_address": "pfs.raidentransport.demo-env.raiden.network",
+                "matrix_server": "http://raidentransport.demo-env.raiden.network",
+                # disable options
+                "unrecoverable_error_should_crash": False,
+                "resolver_endpoint": None,
+            }
+        )
+
     @property
     def welcome_string(self):
         return f"Welcome to Raiden, version {get_system_spec()['raiden']}!"
