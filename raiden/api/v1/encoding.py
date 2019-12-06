@@ -24,7 +24,6 @@ from raiden.constants import (
     UINT256_MAX,
 )
 from raiden.settings import DEFAULT_INITIAL_CHANNEL_TARGET, DEFAULT_JOINABLE_FUNDS_TARGET
-from raiden.storage.serialization.fields import IntegerToStringField
 from raiden.transfer import channel
 from raiden.transfer.state import ChannelState, NettingChannelState
 from raiden.utils.typing import AddressHex
@@ -206,8 +205,8 @@ class BaseListSchema(Schema):
 
 
 class BlockchainEventsRequestSchema(BaseSchema):
-    from_block = IntegerToStringField(missing=None)
-    to_block = IntegerToStringField(missing=None)
+    from_block = fields.Integer(missing=None)
+    to_block = fields.Integer(missing=None)
 
     class Meta:
         strict = True
@@ -216,8 +215,8 @@ class BlockchainEventsRequestSchema(BaseSchema):
 
 
 class RaidenEventsRequestSchema(BaseSchema):
-    limit = IntegerToStringField(missing=None)
-    offset = IntegerToStringField(missing=None)
+    limit = fields.Integer(missing=None)
+    offset = fields.Integer(missing=None)
 
     class Meta:
         strict = True
@@ -260,7 +259,7 @@ class PartnersPerTokenListSchema(BaseListSchema):
 
 class MintTokenSchema(BaseSchema):
     to = AddressField(required=True)
-    value = IntegerToStringField(required=True, validate=validate.Range(min=1, max=UINT256_MAX))
+    value = fields.Integer(required=True, validate=validate.Range(min=1, max=UINT256_MAX))
     contract_method = fields.String(
         validate=validate.OneOf(choices=("increaseSupply", "mint", "mintFor"))
     )
@@ -271,12 +270,12 @@ class MintTokenSchema(BaseSchema):
 
 
 class ChannelStateSchema(BaseSchema):
-    channel_identifier = IntegerToStringField(attribute="identifier")
+    channel_identifier = fields.Integer(attribute="identifier")
     token_network_address = AddressField()
     token_address = AddressField()
     partner_address = fields.Method("get_partner_address")
-    settle_timeout = IntegerToStringField()
-    reveal_timeout = IntegerToStringField()
+    settle_timeout = fields.Integer()
+    reveal_timeout = fields.Integer()
     balance = fields.Method("get_balance")
     state = fields.Method("get_state")
     total_deposit = fields.Method("get_total_deposit")
@@ -312,9 +311,9 @@ class ChannelStateSchema(BaseSchema):
 class ChannelPutSchema(BaseSchema):
     token_address = AddressField(required=True)
     partner_address = AddressField(required=True)
-    reveal_timeout = IntegerToStringField(missing=None)
-    settle_timeout = IntegerToStringField(missing=None)
-    total_deposit = IntegerToStringField(default=None, missing=None)
+    reveal_timeout = fields.Integer(missing=None)
+    settle_timeout = fields.Integer(missing=None)
+    total_deposit = fields.Integer(default=None, missing=None)
 
     class Meta:
         strict = True
@@ -323,9 +322,9 @@ class ChannelPutSchema(BaseSchema):
 
 
 class ChannelPatchSchema(BaseSchema):
-    total_deposit = IntegerToStringField(default=None, missing=None)
-    total_withdraw = IntegerToStringField(default=None, missing=None)
-    reveal_timeout = IntegerToStringField(default=None, missing=None)
+    total_deposit = fields.Integer(default=None, missing=None)
+    total_withdraw = fields.Integer(default=None, missing=None)
+    reveal_timeout = fields.Integer(default=None, missing=None)
     state = fields.String(
         default=None,
         missing=None,
@@ -348,11 +347,11 @@ class PaymentSchema(BaseSchema):
     initiator_address = AddressField(missing=None)
     target_address = AddressField(missing=None)
     token_address = AddressField(missing=None)
-    amount = IntegerToStringField(required=True)
-    identifier = IntegerToStringField(missing=None)
+    amount = fields.Integer(required=True)
+    identifier = fields.Integer(missing=None)
     secret = SecretField(missing=None)
     secret_hash = SecretHashField(missing=None)
-    lock_timeout = IntegerToStringField(missing=None)
+    lock_timeout = fields.Integer(missing=None)
 
     class Meta:
         strict = True
@@ -360,8 +359,8 @@ class PaymentSchema(BaseSchema):
 
 
 class ConnectionsConnectSchema(BaseSchema):
-    funds = IntegerToStringField(required=True)
-    initial_channel_target = IntegerToStringField(missing=DEFAULT_INITIAL_CHANNEL_TARGET)
+    funds = fields.Integer(required=True)
+    initial_channel_target = fields.Integer(missing=DEFAULT_INITIAL_CHANNEL_TARGET)
     joinable_funds_target = fields.Decimal(missing=DEFAULT_JOINABLE_FUNDS_TARGET)
 
     class Meta:
@@ -376,8 +375,8 @@ class ConnectionsLeaveSchema(BaseSchema):
 
 
 class EventPaymentSentFailedSchema(BaseSchema):
-    block_number = IntegerToStringField()
-    identifier = IntegerToStringField()
+    block_number = fields.Integer()
+    identifier = fields.Integer()
     event = fields.Constant("EventPaymentSentFailed")
     reason = fields.Str()
     target = AddressField()
@@ -390,10 +389,10 @@ class EventPaymentSentFailedSchema(BaseSchema):
 
 
 class EventPaymentSentSuccessSchema(BaseSchema):
-    block_number = IntegerToStringField()
-    identifier = IntegerToStringField()
+    block_number = fields.Integer()
+    identifier = fields.Integer()
     event = fields.Constant("EventPaymentSentSuccess")
-    amount = IntegerToStringField()
+    amount = fields.Integer()
     target = AddressField()
     log_time = TimeStampField()
 
@@ -404,10 +403,10 @@ class EventPaymentSentSuccessSchema(BaseSchema):
 
 
 class EventPaymentReceivedSuccessSchema(BaseSchema):
-    block_number = IntegerToStringField()
-    identifier = IntegerToStringField()
+    block_number = fields.Integer()
+    identifier = fields.Integer()
     event = fields.Constant("EventPaymentReceivedSuccess")
-    amount = IntegerToStringField()
+    amount = fields.Integer()
     initiator = AddressField()
     log_time = TimeStampField()
 
