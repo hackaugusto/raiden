@@ -311,7 +311,7 @@ def transfer_and_assert_successful(
 
     assert response is not None
     is_json = response.headers["Content-Type"] == "application/json"
-    assert is_json, response.headers["Content-Type"]
+    assert is_json, (response.headers["Content-Type"], response.text)
     assert response.status_code == HTTPStatus.OK, response.json()
 
 
@@ -541,6 +541,7 @@ def main() -> None:
                     "--network-id": node_config["network-id"],
                     "--address": address,
                     "--api-address": api_url,
+                    "--flamegraph": "/tmp/flamegraph",
                 }
             )
 

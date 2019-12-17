@@ -1,3 +1,4 @@
+from copy import deepcopy
 from dataclasses import dataclass
 
 import gevent.lock
@@ -27,22 +28,21 @@ from raiden.utils.typing import (
 log = structlog.get_logger(__name__)
 
 
-def restore_to_state_change(
+def restore_state(
     transition_function: Callable,
     storage: SerializedSQLiteStorage,
     state_change_identifier: StateChangeID,
     node_address: Address,
-) -> "WriteAheadLog":
-    chain_state: Optional[State]
-    from_identifier: StateChangeID
-
+    initial_state: State,
+) -> Optional[State]:
+    """Restores the state manager from the database, if any, otherwise returns `None`."""
     snapshot = storage.get_snapshot_before_state_change(
         state_change_identifier=state_change_identifier
     )
 
     if snapshot is not None:
         log.debug(
-            "Restoring from snapshot",
+            "Snapshot found",
             from_state_change_id=snapshot.state_change_identifier,
             to_state_change_id=state_change_identifier,
             node=to_checksum_address(node_address),
@@ -51,31 +51,33 @@ def restore_to_state_change(
         chain_state = snapshot.data
     else:
         log.debug(
-            "No snapshot found, replaying all state changes",
+            "No snapshot found",
             to_state_change_id=state_change_identifier,
             node=to_checksum_address(node_address),
         )
         from_identifier = LOW_STATECHANGE_ULID
-        chain_state = None
-
-    state_manager = StateManager(transition_function, chain_state)
-    wal = WriteAheadLog(state_manager, storage)
+        chain_state = initial_state
 
     unapplied_state_changes = storage.get_statechanges_by_range(
         Range(from_identifier, state_change_identifier)
     )
-    if unapplied_state_changes:
-        log.debug(
-            "Replaying state changes",
-            replayed_state_changes=[
-                redact_secret(DictSerializer.serialize(state_change))
-                for state_change in unapplied_state_changes
-            ],
-            node=to_checksum_address(node_address),
-        )
-        wal.state_manager.dispatch(unapplied_state_changes)
 
-    return wal
+    # The database is clean, return None to inform the caller.
+    if not snapshot and not unapplied_state_changes:
+        return None
+
+    log.debug(
+        "Replaying state changes",
+        replayed_state_changes=[
+            redact_secret(DictSerializer.serialize(state_change))
+            for state_change in unapplied_state_changes
+        ],
+        node=to_checksum_address(node_address),
+    )
+
+    state_manager = StateManager(transition_function, chain_state, unapplied_state_changes)
+
+    return state_manager.current_state
 
 
 ST = TypeVar("ST", bound=State)
@@ -97,7 +99,7 @@ class WriteAheadLog(Generic[ST]):
     saved_state: SavedState[ST]
 
     def __init__(self, state_manager: StateManager[ST], storage: SerializedSQLiteStorage) -> None:
-        self.state_manager = state_manager
+        self._state_manager = state_manager
         self.storage = storage
 
         # The state changes must be applied in the same order as they are saved
@@ -119,7 +121,7 @@ class WriteAheadLog(Generic[ST]):
         with self._lock:
             all_state_change_ids = self.storage.write_state_changes(state_changes)
 
-            latest_state, all_events = self.state_manager.dispatch(state_changes)
+            latest_state, all_events = self._state_manager.dispatch(state_changes)
             latest_state_change_id = all_state_change_ids[-1]
 
             # The update must be done with a single operation, to make sure
@@ -144,12 +146,16 @@ class WriteAheadLog(Generic[ST]):
         restart or a crash.
         """
         with self._lock:
-            current_state = self.state_manager.current_state
+            current_state = self._state_manager.current_state
             state_change_id = self.saved_state.state_change_id
 
             # otherwise no state change was dispatched
             if state_change_id and current_state is not None:
                 self.storage.write_state_snapshot(current_state, state_change_id)
+
+    def get_current_state(self) -> ST:
+        """Returns a copy of the current node state."""
+        return deepcopy(self._state_manager.current_state)
 
     @property
     def version(self) -> RaidenDBVersion:

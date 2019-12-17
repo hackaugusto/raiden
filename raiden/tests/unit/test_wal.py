@@ -14,7 +14,7 @@ from raiden.storage.sqlite import (
     SerializedSQLiteStorage,
 )
 from raiden.storage.utils import TimestampedEvent
-from raiden.storage.wal import WriteAheadLog, restore_to_state_change
+from raiden.storage.wal import WriteAheadLog, restore_state
 from raiden.tests.utils.factories import (
     make_address,
     make_canonical_identifier,
@@ -42,15 +42,16 @@ class AccState(State):
 
 
 def state_transtion_acc(state, state_change):
-    state = state or AccState()
+    state = state
     state.state_changes.append(state_change)
     return TransitionResult(state, list())
 
 
 def new_wal(state_transition: Callable, state: State = None) -> WriteAheadLog:
     serializer = JSONSerializer()
+    state = state or Empty()
 
-    state_manager = StateManager(state_transition, state)
+    state_manager = StateManager(state_transition, state, [])
     storage = SerializedSQLiteStorage(":memory:", serializer)
     wal = WriteAheadLog(state_manager, storage)
     return wal
@@ -176,14 +177,15 @@ def test_restore_without_snapshot():
     block3 = Block(block_number=8, gas_limit=1, block_hash=make_transaction_hash())
     wal.log_and_dispatch([block3])
 
-    newwal = restore_to_state_change(
+    newwal = restore_state(
         transition_function=state_transtion_acc,
         storage=wal.storage,
         state_change_identifier=HIGH_STATECHANGE_ULID,
         node_address=make_address(),
+        initial_state=AccState(),
     )
 
-    aggregate = newwal.state_manager.current_state
+    aggregate = newwal.get_current_state()
     assert aggregate.state_changes == [block1, block2, block3]
 
 
@@ -195,14 +197,15 @@ def test_restore_without_snapshot_in_batches():
     block3 = Block(block_number=8, gas_limit=1, block_hash=make_transaction_hash())
     wal.log_and_dispatch([block1, block2, block3])
 
-    newwal = restore_to_state_change(
+    newwal = restore_state(
         transition_function=state_transtion_acc,
         storage=wal.storage,
         state_change_identifier=HIGH_STATECHANGE_ULID,
         node_address=make_address(),
+        initial_state=AccState(),
     )
 
-    aggregate = newwal.state_manager.current_state
+    aggregate = newwal.get_current_state()
     assert aggregate.state_changes == [block1, block2, block3]
 
 

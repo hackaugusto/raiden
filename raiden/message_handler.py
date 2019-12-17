@@ -195,6 +195,7 @@ class MessageHandler:
     @staticmethod
     def handle_message_refundtransfer(raiden: "RaidenService", message: RefundTransfer) -> None:
         chain_state = views.state_from_raiden(raiden)
+
         from_transfer = lockedtransfersigned_from_message(message=message)
 
         role = views.get_transfer_role(
