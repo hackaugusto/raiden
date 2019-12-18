@@ -152,6 +152,7 @@ class TraceSampler:
         # stack trace will be reported.
         self.old_frame = None
 
+        self.previous_callback = greenlet.gettrace()
         greenlet.settrace(self._greenlet_profiler)  # pylint: disable=c-extension-no-member
         sys.setprofile(self._thread_profiler)
         # threading.setprofile(self._thread_profiler)
@@ -162,7 +163,7 @@ class TraceSampler:
             return True
         return False
 
-    def _greenlet_profiler(self, _event, _args):
+    def _greenlet_profiler(self, event: str, args: Any) -> None:
         timestamp = time.time()
         try:
             # we need to account the time for the user function
@@ -178,6 +179,11 @@ class TraceSampler:
 
         self.old_frame = frame
 
+        if self.previous_callback is not None:
+            return self.previous_callback(event, args)
+
+        return None
+
     def _thread_profiler(self, frame: FrameType, _event: str, _arg: Any) -> None:
         timestamp = time.time()
         if self._should_sample(timestamp):
@@ -189,7 +195,7 @@ class TraceSampler:
         # measurements in the end
         sys.setprofile(None)
         threading.setprofile(None)  # type: ignore
-        greenlet.settrace(None)  # pylint: disable=c-extension-no-member
+        greenlet.settrace(self.previous_callback)  # pylint: disable=c-extension-no-member
 
         self.collector.stop()
         self.collector = None

@@ -16,7 +16,7 @@ from raiden.messages.encode import message_from_sendevent
 from raiden.network.pathfinding import post_pfs_feedback
 from raiden.network.proxies.payment_channel import PaymentChannel
 from raiden.network.proxies.token_network import TokenNetwork
-from raiden.network.resolver.client import reveal_secret_with_resolver
+from raiden.network.resolver.client import ResolverBlockchainDetails, reveal_secret_with_resolver
 from raiden.services import send_pfs_update
 from raiden.storage.restore import (
     channel_state_until_state_change,
@@ -190,7 +190,7 @@ class RaidenEventHandler(EventHandler):
             self.handle_contract_send_channelwithdraw(raiden, event)
         elif type(event) == SendPFSFeeUpdate:
             assert isinstance(event, SendPFSFeeUpdate), MYPY_ANNOTATION
-            self.handle_send_pfs_fee_update(raiden, event)
+            self.handle_send_pfs_fee_update(raiden, chain_state, event)
         elif type(event) in UNEVENTFUL_EVENTS:
             pass
         else:
@@ -202,10 +202,11 @@ class RaidenEventHandler(EventHandler):
 
     @staticmethod
     def handle_send_pfs_fee_update(
-        raiden: "RaidenService", event: SendPFSFeeUpdate
+        raiden: "RaidenService", chain_state: ChainState, event: SendPFSFeeUpdate
     ) -> None:  # pragma: no unittest
         send_pfs_update(
             raiden=raiden,
+            chain_state=chain_state,
             canonical_identifier=event.canonical_identifier,
             update_fee_schedule=True,
         )
@@ -248,7 +249,8 @@ class RaidenEventHandler(EventHandler):
     def handle_send_secretrequest(
         raiden: "RaidenService", chain_state: ChainState, secret_request_event: SendSecretRequest
     ) -> None:  # pragma: no unittest
-        if reveal_secret_with_resolver(raiden, chain_state, secret_request_event):
+        details = ResolverBlockchainDetails(chain_state.chain_id, chain_state.block_number)
+        if reveal_secret_with_resolver(raiden, details, secret_request_event):
             return
 
         secret_request_message = message_from_sendevent(secret_request_event)
@@ -752,9 +754,38 @@ class PFSFeedbackEventHandler(RaidenEventHandler):
         if type(event) == EventRouteFailed:
             assert isinstance(event, EventRouteFailed), MYPY_ANNOTATION
             self.handle_routefailed(raiden, event)
+
         elif type(event) == EventPaymentSentSuccess:
             assert isinstance(event, EventPaymentSentSuccess), MYPY_ANNOTATION
             self.handle_paymentsentsuccess(raiden, event)
+
+        elif type(event) == SendBalanceProof:
+            assert isinstance(event, SendBalanceProof), MYPY_ANNOTATION
+            self.handle_sendbalanceproof(raiden, chain_state, event)
+
+        elif type(event) == SendLockedTransfer:
+            assert isinstance(event, SendLockedTransfer), MYPY_ANNOTATION
+            self.handle_sendlockedtransfer(raiden, chain_state, event)
+
+        elif type(event) == SendLockExpired:
+            assert isinstance(event, SendLockExpired), MYPY_ANNOTATION
+            self.handle_sendlockexpired(raiden, chain_state, event)
+
+        elif type(event) == SendRefundTransfer:
+            assert isinstance(event, SendRefundTransfer), MYPY_ANNOTATION
+            self.handle_sendrefundtransfer(raiden, chain_state, event)
+
+        elif type(event) == SendWithdrawConfirmation:
+            assert isinstance(event, SendWithdrawConfirmation), MYPY_ANNOTATION
+            self.handle_sendwithdrawconfirmation(raiden, chain_state, event)
+
+        elif type(event) == SendWithdrawExpired:
+            assert isinstance(event, SendWithdrawExpired), MYPY_ANNOTATION
+            self.handle_sendwithdrawexpired(raiden, chain_state, event)
+
+        elif type(event) == SendWithdrawRequest:
+            assert isinstance(event, SendWithdrawRequest), MYPY_ANNOTATION
+            self.handle_sendwithdrawrequest(raiden, chain_state, event)
 
         # Call the decorated event handler
         self.wrapped.on_raiden_event(raiden, chain_state, event)
@@ -805,3 +836,45 @@ class PFSFeedbackEventHandler(RaidenEventHandler):
                 token=feedback_token,
                 successful=True,
             )
+
+    @staticmethod
+    def handle_sendbalanceproof(
+        raiden: "RaidenService", chain_state: ChainState, event: SendBalanceProof
+    ) -> None:
+        send_pfs_update(raiden, chain_state, event.balance_proof.canonical_identifier)
+
+    @staticmethod
+    def handle_sendlockedtransfer(
+        raiden: "RaidenService", chain_state: ChainState, event: SendLockedTransfer
+    ) -> None:
+        send_pfs_update(raiden, chain_state, event.balance_proof.canonical_identifier)
+
+    @staticmethod
+    def handle_sendlockexpired(
+        raiden: "RaidenService", chain_state: ChainState, event: SendLockExpired
+    ) -> None:
+        send_pfs_update(raiden, chain_state, event.balance_proof.canonical_identifier)
+
+    @staticmethod
+    def handle_sendrefundtransfer(
+        raiden: "RaidenService", chain_state: ChainState, event: SendRefundTransfer
+    ) -> None:
+        send_pfs_update(raiden, chain_state, event.balance_proof.canonical_identifier)
+
+    @staticmethod
+    def handle_sendwithdrawconfirmation(
+        raiden: "RaidenService", chain_state: ChainState, event: SendWithdrawConfirmation
+    ) -> None:
+        send_pfs_update(raiden, chain_state, event.canonical_identifier)
+
+    @staticmethod
+    def handle_sendwithdrawexpired(
+        raiden: "RaidenService", chain_state: ChainState, event: SendWithdrawExpired
+    ) -> None:
+        send_pfs_update(raiden, chain_state, event.canonical_identifier)
+
+    @staticmethod
+    def handle_sendwithdrawrequest(
+        raiden: "RaidenService", chain_state: ChainState, event: SendWithdrawRequest
+    ) -> None:
+        send_pfs_update(raiden, chain_state, event.canonical_identifier)

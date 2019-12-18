@@ -1,4 +1,5 @@
 import json
+from dataclasses import dataclass
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -11,8 +12,7 @@ from raiden.storage.wal import WriteAheadLog
 from raiden.transfer import views
 from raiden.transfer.mediated_transfer.events import SendSecretRequest
 from raiden.transfer.mediated_transfer.state_change import ReceiveSecretReveal
-from raiden.transfer.state import ChainState
-from raiden.utils.typing import Secret
+from raiden.utils.typing import BlockNumber, ChainID, Secret
 
 if TYPE_CHECKING:
     # pylint: disable=unused-import
@@ -22,8 +22,16 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
+@dataclass
+class ResolverBlockchainDetails:
+    chain_id: ChainID
+    block_number: BlockNumber
+
+
 def reveal_secret_with_resolver(
-    raiden: "RaidenService", chain_state: ChainState, secret_request_event: SendSecretRequest
+    raiden: "RaidenService",
+    details: ResolverBlockchainDetails,
+    secret_request_event: SendSecretRequest,
 ) -> bool:
 
     resolver_endpoint = raiden.config.get("resolver_endpoint")
@@ -49,7 +57,7 @@ def reveal_secret_with_resolver(
         "payment_sender": to_hex(secret_request_event.recipient),
         "expiration": secret_request_event.expiration,
         "payment_recipient": to_hex(raiden.address),
-        "chain_id": chain_state.chain_id,
+        "chain_id": details.chain_id,
     }
 
     # loop until we get a valid response from the resolver or until timeout
@@ -66,7 +74,7 @@ def reveal_secret_with_resolver(
 
         try:
             # before calling resolver, update block height
-            request["chain_height"] = chain_state.block_number
+            request["chain_height"] = details.block_number
             response = requests.post(resolver_endpoint, json=request)
         except requests.exceptions.RequestException:
             pass

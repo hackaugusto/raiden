@@ -554,6 +554,7 @@ def main() -> None:
                 "--accept-disclaimer",
                 "--log-json",
                 "--disable-debug-logfile",
+                "--switch-tracing",
             ]
             raiden_args.extend(chain.from_iterable(node.items()))
 

@@ -108,7 +108,7 @@ class WriteAheadLog(Generic[ST]):
         # execution order.
         self._lock = gevent.lock.Semaphore()
 
-    def log_and_dispatch(self, state_changes: List[StateChange]) -> Tuple[ST, List[Event]]:
+    def log_and_dispatch(self, state_changes: List[StateChange]) -> List[Event]:
         """ Log and apply a state change.
 
         This function will first write the state change to the write-ahead-log,
@@ -137,7 +137,7 @@ class WriteAheadLog(Generic[ST]):
 
             self.storage.write_events(event_data)
 
-        return latest_state, flattened_events
+        return flattened_events
 
     def snapshot(self) -> None:
         """ Snapshot the application state.
