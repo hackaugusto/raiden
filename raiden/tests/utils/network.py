@@ -36,6 +36,7 @@ from raiden.transfer.views import (
     state_from_raiden,
 )
 from raiden.ui.app import start_api_server
+from raiden.ui.startup import RaidenBundle
 from raiden.utils.formatting import to_checksum_address, to_hex_address
 from raiden.utils.typing import (
     Address,
@@ -478,9 +479,10 @@ def create_apps(
             rpc_client=proxy_manager.client,
             proxy_manager=proxy_manager,
             query_start_block=BlockNumber(0),
-            default_registry=registry,
+            raiden_bundle=RaidenBundle(
+                token_network_registry=registry, secret_registry=secret_registry
+            ),
             default_one_to_n_address=one_to_n_address,
-            default_secret_registry=secret_registry,
             default_service_registry=service_registry,
             default_msc_address=monitoring_service_contract_address,
             transport=transport,

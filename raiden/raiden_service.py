@@ -53,9 +53,7 @@ from raiden.message_handler import MessageHandler
 from raiden.messages.abstract import Message, SignedMessage
 from raiden.messages.encode import message_from_sendevent
 from raiden.network.proxies.proxy_manager import ProxyManager
-from raiden.network.proxies.secret_registry import SecretRegistry
 from raiden.network.proxies.service_registry import ServiceRegistry
-from raiden.network.proxies.token_network_registry import TokenNetworkRegistry
 from raiden.network.proxies.user_deposit import UserDeposit
 from raiden.network.rpc.client import JSONRPCClient
 from raiden.network.transport.matrix.transport import MatrixTransport, MessagesQueue
@@ -104,6 +102,7 @@ from raiden.transfer.state_change import (
     ReceiveWithdrawExpired,
     ReceiveWithdrawRequest,
 )
+from raiden.ui.startup import RaidenBundle
 from raiden.utils.formatting import lpex, to_checksum_address
 from raiden.utils.gevent import spawn_named
 from raiden.utils.logging import redact_secret
@@ -278,8 +277,7 @@ class RaidenService(Runnable):
         rpc_client: JSONRPCClient,
         proxy_manager: ProxyManager,
         query_start_block: BlockNumber,
-        default_registry: TokenNetworkRegistry,
-        default_secret_registry: SecretRegistry,
+        raiden_bundle: RaidenBundle,
         default_service_registry: Optional[ServiceRegistry],
         default_one_to_n_address: Optional[OneToNAddress],
         default_msc_address: Optional[MonitoringServiceAddress],
@@ -297,14 +295,16 @@ class RaidenService(Runnable):
 
         self.rpc_client = rpc_client
         self.proxy_manager = proxy_manager
-        self.default_registry = default_registry
         self.query_start_block = query_start_block
         self.default_one_to_n_address = default_one_to_n_address
-        self.default_secret_registry = default_secret_registry
         self.default_service_registry = default_service_registry
         self.default_msc_address = default_msc_address
         self.routing_mode = routing_mode
         self.config = config
+
+        self.raiden_bundle = raiden_bundle
+        self.default_registry = raiden_bundle.token_network_registry
+        self.default_secret_registry = raiden_bundle.secret_registry
 
         self.signer: Signer = LocalSigner(self.rpc_client.privkey)
         self.address = self.signer.address

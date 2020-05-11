@@ -54,6 +54,10 @@ from raiden_contracts.contract_manager import (
 
 @dataclass(frozen=True)
 class RaidenBundle:
+    """ Makes sure that token_network_registry and secret_registry are properly
+    configured to be used together.
+    """
+
     token_network_registry: TokenNetworkRegistry
     secret_registry: SecretRegistry
 
