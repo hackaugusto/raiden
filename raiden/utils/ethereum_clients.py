@@ -4,11 +4,10 @@ from pkg_resources import parse_version
 from pkg_resources.extern.packaging.version import Version
 
 from raiden.constants import (
-    HIGHEST_SUPPORTED_GETH_VERSION,
-    HIGHEST_SUPPORTED_PARITY_VERSION,
     LOWEST_SUPPORTED_GETH_VERSION,
     LOWEST_SUPPORTED_PARITY_VERSION,
     EthClient,
+    EthCompatibility,
 )
 from raiden.utils.typing import Optional, Tuple
 
@@ -25,11 +24,7 @@ def parse_geth_version(client_version: str) -> Optional[tuple]:
     return parse_version(matches.groups()[0])
 
 
-def support_check(
-    our_version: Version,
-    highest_supported_version_string: str,
-    lowest_supported_version_string: str,
-) -> bool:
+def support_check(our_version: Version, lowest_supported_version_string: EthCompatibility) -> bool:
 
     # TODO: Is there any better way to get major/minor/patch version from a Version object?
     # Currently we use this private member which is not ideal. release is a tuple.
@@ -64,21 +59,13 @@ def is_supported_client(client_version: str) -> Tuple[bool, Optional[EthClient],
             return False, None, None
 
         our_parity_version = parse_version(matches.groups()[0])
-        supported = support_check(
-            our_version=our_parity_version,
-            highest_supported_version_string=HIGHEST_SUPPORTED_PARITY_VERSION,
-            lowest_supported_version_string=LOWEST_SUPPORTED_PARITY_VERSION,
-        )
+        supported = LOWEST_SUPPORTED_PARITY_VERSION.support_check(our_parity_version)
         return supported, EthClient.PARITY, str(our_parity_version)
     elif client_version.startswith("Geth"):
         our_geth_version = parse_geth_version(client_version)
         if our_geth_version is None:
             return False, None, None
-        supported = support_check(
-            our_version=our_geth_version,
-            highest_supported_version_string=HIGHEST_SUPPORTED_GETH_VERSION,
-            lowest_supported_version_string=LOWEST_SUPPORTED_GETH_VERSION,
-        )
+        supported = LOWEST_SUPPORTED_GETH_VERSION.support_check(our_version)
         return supported, EthClient.GETH, str(our_geth_version)
 
     return False, None, None

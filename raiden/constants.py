@@ -1,4 +1,5 @@
 import math
+from dataclasses import dataclass
 from enum import Enum
 
 from eth_utils import keccak, to_canonical_address
@@ -12,6 +13,7 @@ from raiden.utils.typing import (
     BlockHash,
     BlockNumber,
     ChainID,
+    List,
     Literal,
     Locksroot,
     RaidenDBVersion,
@@ -22,6 +24,7 @@ from raiden.utils.typing import (
     TokenAddress,
     TokenAmount,
     TransactionHash,
+    Tuple,
 )
 
 LATEST = "https://api.github.com/repos/raiden-network/raiden/releases/latest"
@@ -180,12 +183,63 @@ ETH_GET_LOGS_TIMEOUT = 10
 ETH_GET_LOGS_THRESHOLD_FAST = ETH_GET_LOGS_TIMEOUT // 4
 ETH_GET_LOGS_THRESHOLD_SLOW = ETH_GET_LOGS_TIMEOUT // 2
 
-# Keep in sync with .circleci/config.yaml
-HIGHEST_SUPPORTED_GETH_VERSION = "2.0.0"
-LOWEST_SUPPORTED_GETH_VERSION = "1.9.7"
-# this is the last stable version as of this comment
-HIGHEST_SUPPORTED_PARITY_VERSION = "3.0.0"
-LOWEST_SUPPORTED_PARITY_VERSION = "1.7.6"
+
+@dataclass
+class VersionCompatibility:
+    lowest_version_inclusive: Tuple[int, ...]
+    # Using exclusive for highest value otherwise we would need to use multiple
+    # `float("inf")`
+    highest_version_exclusive: Tuple[int, ...]
+
+    def __post_init__(self) -> None:
+        if self.lowest_version_inclusive >= self.highest_version_exclusive:
+            raise ValueError(
+                "`lowest_version_inclusive` must be lower than `highest_version_exclusive`"
+            )
+
+    def support_check(self, current_version: Tuple[int, ...]) -> bool:
+        """ Semantic version check. """
+
+        return (
+            current_version >= self.lowest_version_inclusive
+            and current_version < self.highest_version_exclusive
+        )
+
+    def __str__(self) -> str:
+        return f">={self.lowest_version_inclusive}, <{self.highest_version_exclusive}"
+
+
+@dataclass
+class EthCompatibility:
+    supported_versions: List[VersionCompatibility]
+
+    def __post_init__(self) -> None:
+        # Make sure the versions are in increasing and do not overlap
+        for lower, higher in zip(self.supported_versions, self.supported_versions[1:]):
+            if not lower.highest_version_exclusive < higher.lowest_version_inclusive:
+                raise ValueError("Versions must be in incremental order and must not overlap")
+
+    def support_check(self, current_version: Tuple[int, ...]) -> bool:
+        """ Semantic version check with support for blacklists.
+
+        Blacklisting is supported by having multiple entries, e.g.:
+
+            EthCompatibility([
+                VersionCompatibility((1,15,1), (1,16)),
+                VersionCompatibility((1,17), (2,))
+            ])
+
+        The code above blacklist the verion `1.16`.
+        """
+        return any(version.support_check(current_version) for version in self.supported_versions)
+
+
+GETH_COMPATIBILTY = EthCompatibility(
+    [VersionCompatibility(lowest_version_inclusive=(1, 9, 7), highest_version_exclusive=(2,))]
+)
+PARITY_COMPATIBILITY = EthCompatibility(
+    [VersionCompatibility(lowest_version_inclusive=(1, 7, 6), highest_version_exclusive=(3,))]
+)
 
 WEB3_BLOCK_NOT_FOUND_RETRY_COUNT = 3
 
